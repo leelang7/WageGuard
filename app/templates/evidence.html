@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}효과 근거{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">효과 근거 (Evidence)</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        <b>벤치마킹 정량 효과·시뮬 검증·이론적 근거·몬테카를로 임팩트·KEAD 결합 ablation</b> 5종으로 효과 근거를 입증합니다.
+    </p>
+</div>
+
+<!-- 효과 요약 배너 -->
+<section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="card text-center border-l-4 border-indigo-500">
+        <div class="text-2xl font-extrabold text-indigo-700" id="ev-f1">0.864</div>
+        <div class="text-xs text-slate-500 mt-1">Track A F1 (부정수급 차단)</div>
+    </div>
+    <div class="card text-center border-l-4 border-rose-500">
+        <div class="text-2xl font-extrabold text-rose-700" id="ev-cv">0.928</div>
+        <div class="text-xs text-slate-500 mt-1">Track B ML K-fold F1</div>
+    </div>
+    <div class="card text-center border-l-4 border-amber-500">
+        <div class="text-2xl font-extrabold text-amber-700" id="ev-mc">—</div>
+        <div class="text-xs text-slate-500 mt-1">Monte Carlo 절감 (중앙값)</div>
+    </div>
+    <div class="card text-center border-l-4 border-emerald-500">
+        <div class="text-2xl font-extrabold text-emerald-700" id="ev-data">7개</div>
+        <div class="text-xs text-slate-500 mt-1">7개 기관 데이터 직접 연동</div>
+    </div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">① 해외/타산업 벤치마킹 시스템 정량 효과</h2>
+    <table class="t">
+        <thead><tr><th>시스템</th><th>국가</th><th>정량 효과</th><th>출처</th><th>우리 모듈</th></tr></thead>
+        <tbody id="bm-rows"></tbody>
+    </table>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">② M6 부정수급 시뮬레이션 — Phase별 성능</h2>
+    <div id="m6-card" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    <div id="m6-improve" class="mt-3 text-center text-sm"></div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">③ Ablation — 도메인 분리 격상 규칙의 효과</h2>
+    <div class="text-xs text-slate-500 mb-3">현재 시스템 데이터에서 격상 규칙별 precision/recall 비교. 라벨은 신고 케이스(case)를 proxy로 사용.</div>
+    <table class="t">
+        <thead><tr><th>규칙</th>
+            <th class="text-right">TP</th><th class="text-right">FP</th><th class="text-right">FN</th>
+            <th class="text-right">Precision</th><th class="text-right">Recall</th><th class="text-right">F1</th>
+        </tr></thead>
+        <tbody id="ab-rows"></tbody>
+    </table>
+    <div id="ab-interp" class="mt-2 text-xs text-slate-600"></div>
+</section>
+
+<section class="card mb-6 border-rose-300 bg-rose-50">
+    <h2 class="font-semibold mb-3 text-rose-900">④-A Track B ML — KEAD 결합 Ablation (주관기관 데이터 효과)</h2>
+    <p class="text-xs text-slate-600 mb-3">주관기관 KEAD 데이터 2특성(의무고용·근로지원중첩) 추가 시 ML 분류 성능 변화.</p>
+    <div id="kead-ablation-wrap" class="grid md:grid-cols-3 gap-3 text-center">
+        <div class="bg-white rounded-lg p-3 border border-slate-200">
+            <div class="text-xs text-slate-500 mb-1">기본 7특성 (KEAD 제외)</div>
+            <div class="text-2xl font-extrabold text-slate-600" id="ab-ml-base">—</div>
+            <div class="text-xs text-slate-400" id="ab-ml-base-f1">F1 —</div>
+        </div>
+        <div class="bg-white rounded-lg p-3 border border-rose-200">
+            <div class="text-xs text-rose-700 mb-1">9특성 (KEAD 2특성 결합)</div>
+            <div class="text-2xl font-extrabold text-rose-700" id="ab-ml-kead">—</div>
+            <div class="text-xs text-rose-500" id="ab-ml-kead-f1">F1 —</div>
+        </div>
+        <div class="bg-rose-100 rounded-lg p-3 border border-rose-300 flex flex-col items-center justify-center">
+            <div class="text-xs text-rose-700 mb-1">KEAD 결합 기여</div>
+            <div class="text-3xl font-extrabold text-rose-700" id="ab-ml-delta">—</div>
+            <div class="text-xs text-rose-600 mt-1">F1 향상폭</div>
+        </div>
+    </div>
+    <div class="mt-3 text-xs text-slate-700" id="ab-ml-rationale"></div>
+    <div id="ab-ml-chart" style="height:160px;"></div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">④ 이론적 근거</h2>
+    <div id="th-rows" class="space-y-2"></div>
+</section>
+
+<section class="card mb-6" id="mc-section">
+    <h2 class="font-semibold mb-3">⑥ 몬테카를로 1,000회 — 95% 신뢰구간</h2>
+    <div class="grid grid-cols-3 gap-3 text-center mb-3">
+        <div><div class="text-xs text-slate-500">평균</div><div class="text-2xl font-bold mono" id="mc-mean">-</div></div>
+        <div><div class="text-xs text-slate-500">중앙값</div><div class="text-2xl font-bold mono" id="mc-median">-</div></div>
+        <div><div class="text-xs text-slate-500">95% 신뢰구간</div><div class="text-sm font-bold mono" id="mc-ci">-</div></div>
+    </div>
+    <div id="mc-chart" style="height:200px;"></div>
+    <div class="text-[11px] text-slate-500 mt-2" id="mc-method"></div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">⑦ K-fold 교차검증 — priors 일반화</h2>
+    <div class="grid grid-cols-2 gap-3 text-center mb-3">
+        <div><div class="text-xs text-slate-500">업종 Top-5 hit</div><div class="text-2xl font-bold mono" id="cv-ind">-</div></div>
+        <div><div class="text-xs text-slate-500">지역 Top-5 hit</div><div class="text-2xl font-bold mono" id="cv-reg">-</div></div>
+    </div>
+    <div class="text-xs text-slate-500 mb-2">표본 <span id="cv-n">-</span> · <span id="cv-k">-</span>-fold CV</div>
+    <table class="w-full text-xs">
+        <thead><tr><th class="text-left">fold</th><th class="text-right">업종 hit</th><th class="text-right">지역 hit</th></tr></thead>
+        <tbody id="cv-folds"></tbody>
+    </table>
+    <div class="text-[11px] text-slate-500 mt-2" id="cv-interp"></div>
+</section>
+
+<section class="card">
+    <h2 class="font-semibold mb-3">⑤ 시나리오별 사회적 임팩트 추정</h2>
+    <div id="impact-rows" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+    <div class="text-xs text-slate-500 mt-3" id="impact-method"></div>
+    <div class="text-xs text-slate-500 mt-1">
+        <b>가정</b>:
+        <ul class="list-disc list-inside" id="impact-assume"></ul>
+    </div>
+</section>
+
+<script>
+async function load() {
+    // Load key-numbers for banner updates
+    fetch('/api/evidence/key-numbers').then(r => r.json()).then(kn => {
+        const d = kn.data || {};
+        const cvEl = document.getElementById('ev-cv');
+        const dataEl = document.getElementById('ev-data');
+        if (dataEl) dataEl.textContent = (d.organizer_datasets || 7) + '개';
+    }).catch(() => {});
+    // Load ML CV for F1 banner + KEAD ablation
+    fetch('/api/ml/cv?k=5').then(r => r.json()).then(cv => {
+        const cvEl = document.getElementById('ev-cv');
+        if (cvEl && cv.mean_f1) cvEl.textContent = cv.mean_f1.toFixed(3);
+    }).catch(() => {});
+    fetch('/api/ml/ablation').then(r => r.json()).then(ab => {
+        if (!ab.available) return;
+        const base = ab.base_7_features, kead = ab.with_kead_9_features, delta = ab.delta;
+        const fmt = v => (v*100).toFixed(1) + '%';
+        document.getElementById('ab-ml-base').textContent = fmt(base.mean_accuracy);
+        document.getElementById('ab-ml-base-f1').textContent = 'F1 ' + base.mean_f1.toFixed(3);
+        document.getElementById('ab-ml-kead').textContent = fmt(kead.mean_accuracy);
+        document.getElementById('ab-ml-kead-f1').textContent = 'F1 ' + kead.mean_f1.toFixed(3);
+        document.getElementById('ab-ml-delta').textContent = '+' + (delta.f1 * 100).toFixed(1) + '%p';
+        document.getElementById('ab-ml-rationale').textContent = ab.rationale || '';
+        echarts.init(document.getElementById('ab-ml-chart')).setOption({
+            tooltip: {trigger: 'axis'},
+            legend: {data: ['정확도','F1'], bottom: 0, textStyle:{fontSize:10}},
+            grid: {left:50, right:30, top:15, bottom:30},
+            xAxis: {type:'category', data:['7특성(KEAD제외)','9특성(KEAD결합)']},
+            yAxis: {type:'value', min:0.7, max:1.0, axisLabel:{formatter:v=>v.toFixed(2)}},
+            series: [
+                {name:'정확도', type:'bar', data:[base.mean_accuracy, kead.mean_accuracy], itemStyle:{color:['#94a3b8','#ef4444']}, label:{show:true,position:'top',formatter:p=>(p.value*100).toFixed(1)+'%',fontSize:10}},
+                {name:'F1', type:'bar', data:[base.mean_f1, kead.mean_f1], itemStyle:{color:['#cbd5e1','#fb923c']}, label:{show:true,position:'top',formatter:p=>p.value.toFixed(3),fontSize:10}},
+            ],
+        });
+    }).catch(() => {});
+
+    const all = await fetch('/api/evidence').then(r => r.json());
+
+    document.getElementById('bm-rows').innerHTML = (all.benchmarks||[]).map(b => `
+        <tr><td class="font-medium">${b.system}</td><td>${b.country}</td>
+        <td class="text-sm">${b.claim}</td>
+        <td class="text-xs text-slate-500">${b.source}</td>
+        <td class="text-xs text-slate-700">${b.module_match}</td></tr>`).join('');
+
+    const m = all.m6_validation || {};
+    if (m.available) {
+        const card = (label, p, color) => `
+            <div class="border rounded p-3">
+                <div class="font-semibold mb-1">${label}</div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div><div class="text-xs text-slate-500">Precision</div><div class="text-2xl font-bold">${p.precision.toFixed(3)}</div></div>
+                    <div><div class="text-xs text-slate-500">Recall</div><div class="text-2xl font-bold ${color}">${p.recall.toFixed(3)}</div></div>
+                    <div><div class="text-xs text-slate-500">F1</div><div class="text-2xl font-bold ${color}">${p.f1.toFixed(3)}</div></div>
+                </div>
+            </div>`;
+        document.getElementById('m6-card').innerHTML = card('Phase 1', m.phase1, 'text-amber-600') + card('Phase 2 (+L5)', m.phase2, 'text-emerald-600');
+        document.getElementById('m6-improve').innerHTML = `→ Phase 2 도입 시 Recall <span class="text-emerald-700 font-bold">+${(m.improvement_recall*100).toFixed(1)}%p</span>`;
+    }
+
+    const ab = all.ablation || {};
+    if (ab.available) {
+        const labels = {n3_only: 'N≥3 (신호수만)', n3_ch2: 'N≥3 + 채널≥2', n3_ch2_dom2: 'N≥3 + 채널≥2 + 도메인≥2 (현행)'};
+        const rules = ab.rules || {};
+        document.getElementById('ab-rows').innerHTML = Object.entries(rules).map(([k, v]) => `
+            <tr><td>${labels[k] || k}</td>
+            <td class="text-right">${v.tp}</td>
+            <td class="text-right ${v.fp ? 'text-rose-600' : ''}">${v.fp}</td>
+            <td class="text-right">${v.fn}</td>
+            <td class="text-right">${v.precision}</td>
+            <td class="text-right">${v.recall}</td>
+            <td class="text-right font-bold">${v.f1}</td></tr>
+        `).join('');
+        document.getElementById('ab-interp').textContent = ab.interpretation || '';
+    } else {
+        document.getElementById('ab-rows').innerHTML = '<tr><td colspan="7" class="text-slate-400 py-3 text-center">데이터 부족</td></tr>';
+    }
+
+    document.getElementById('th-rows').innerHTML = (all.theory||[]).map(t => `
+        <div class="border rounded p-3">
+            <div class="font-semibold text-sm">${t.field}</div>
+            <div class="text-sm mt-1">${t.claim}</div>
+            <div class="text-xs text-slate-500 mt-1">→ ${t.module_match}</div>
+        </div>`).join('');
+
+    const imp = all.scenario_impact || {};
+    document.getElementById('impact-rows').innerHTML = (imp.estimates||[]).map(e => `
+        <div class="border rounded p-3 text-center">
+            <div class="text-xs text-slate-500">${e.scenario}</div>
+            <div class="text-2xl font-bold mt-2">${(e.expected_value_won/1e9).toFixed(0)}억</div>
+            <div class="text-xs text-slate-400">/년</div>
+        </div>`).join('');
+    document.getElementById('impact-method').textContent = '산출 방법: ' + (imp.method || '');
+    document.getElementById('impact-assume').innerHTML = (imp.assumptions||[]).map(a => `<li>${a}</li>`).join('');
+
+    // Monte Carlo 보강
+    const mc = await fetch('/api/evidence/monte-carlo?n=1000').then(r => r.json());
+    const e = mc.estimates_won;
+    const mcDiv = document.getElementById('mc-section');
+    if (mcDiv) {
+        document.getElementById('mc-mean').textContent = (e.mean / 1e8).toFixed(0) + '억';
+        document.getElementById('mc-median').textContent = (e.median / 1e8).toFixed(0) + '억';
+        document.getElementById('mc-ci').textContent = `${(mc.ci_95.low/1e8).toFixed(0)}억 ~ ${(mc.ci_95.high/1e8).toFixed(0)}억`;
+        // 상단 배너 업데이트
+        const evMc = document.getElementById('ev-mc');
+        if (evMc) evMc.textContent = (e.median / 1e8).toFixed(0) + '억/년';
+        document.getElementById('mc-method').textContent = mc.method;
+        // 히스토그램
+        const opt = {
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 20, top: 20, bottom: 30 },
+            xAxis: { type: 'category', data: mc.histogram.map(b => `${(b.min/1e8).toFixed(0)}억`) },
+            yAxis: { type: 'value', name: '시뮬 횟수' },
+            series: [{ type: 'bar', data: mc.histogram.map(b => b.count), itemStyle: { color: '#3b82f6' } }],
+        };
+        echarts.init(document.getElementById('mc-chart')).setOption(opt);
+    }
+
+    // CV validation
+    const cv = await fetch('/api/evidence/cv-validation?k=5').then(r => r.json());
+    if (cv.available) {
+        document.getElementById('cv-ind').textContent = `${cv.industry_top5_hit.mean} ± ${cv.industry_top5_hit.std}`;
+        document.getElementById('cv-reg').textContent = `${cv.region_top5_hit.mean} ± ${cv.region_top5_hit.std}`;
+        document.getElementById('cv-n').textContent = cv.n_samples;
+        document.getElementById('cv-k').textContent = cv.k_folds;
+        document.getElementById('cv-interp').textContent = cv.interpretation;
+        document.getElementById('cv-folds').innerHTML = cv.fold_metrics.map(f => `
+            <tr><td>fold ${f.fold}</td><td class="text-right">${f.industry_top5_hit}</td><td class="text-right">${f.region_top5_hit}</td></tr>
+        `).join('');
+    }
+}
+load();
+</script>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}사업주 자동 안내{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">📨 사업주 자동 안내 + 소명</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        체불 발생 전, 위험 신호가 누적되면 사업주 본인에게 자동 통지.
+        오해가 있을 경우 사업주가 직접 소명을 등록하면 감독관이 검토합니다.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="card">
+        <h2 class="font-semibold mb-3">자가 구독 (사업주)</h2>
+        <p class="text-xs text-slate-500 mb-3">사업장명을 등록해 두면 위험 신호 발생 시 자동 알림.</p>
+        <div class="space-y-2">
+            <div><label class="text-xs text-slate-500">사업장명 *</label><input id="s-co" class="input w-full"/></div>
+            <div><label class="text-xs text-slate-500">사업자번호</label><input id="s-bno" class="input w-full font-mono" maxlength="10"/></div>
+            <div><label class="text-xs text-slate-500">대표자명 *</label><input id="s-name" class="input w-full"/></div>
+            <div><label class="text-xs text-slate-500">연락처 *</label><input id="s-contact" class="input w-full"/></div>
+            <button onclick="subscribe()" class="btn-primary w-full">구독 등록</button>
+        </div>
+    </div>
+
+    <div class="card lg:col-span-2">
+        <h2 class="font-semibold mb-3">위험 신호 조회 + 소명</h2>
+        <div class="flex gap-2 mb-3">
+            <input id="q-co" class="input flex-1" placeholder="사업장명"/>
+            <button onclick="checkSignals()" class="btn-ghost">조회</button>
+        </div>
+        <div id="check-result" class="text-sm">
+            <div class="text-slate-400">사업장명을 입력하세요.</div>
+        </div>
+    </div>
+</section>
+
+<section id="resp-card" class="card mt-6 hidden">
+    <h2 class="font-semibold mb-3">소명 등록</h2>
+    <div class="text-xs text-slate-500 mb-2">사실관계·증빙을 자세히 기재 (30자 이상). 감독관이 검토.</div>
+    <textarea id="resp-text" rows="5" class="input w-full" placeholder="예) 임금은 정상 지급되었으며 미지급 사실이 없습니다. 임금명세서·통장 입금내역을 첨부할 수 있습니다..."></textarea>
+    <button onclick="submitRespond()" class="btn-primary w-full mt-3">소명 제출</button>
+</section>
+
+<script>
+async function subscribe() {
+    const inp = {
+        company: document.getElementById('s-co').value.trim(),
+        bzowr_rgst_no: document.getElementById('s-bno').value.trim() || null,
+        owner_name: document.getElementById('s-name').value.trim(),
+        owner_contact: document.getElementById('s-contact').value.trim(),
+    };
+    if (!inp.company || !inp.owner_name || !inp.owner_contact) { alert('필수 항목'); return; }
+    const r = await fetch('/api/owner-notice/subscribe', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify(inp),
+    }).then(r=>r.json());
+    alert('구독 등록됨 — id ' + r.id);
+}
+
+async function checkSignals() {
+    const q = document.getElementById('q-co').value.trim();
+    if (!q) return;
+    const r = await fetch('/api/owner-notice/check/' + encodeURIComponent(q)).then(r=>r.json());
+    const sevColor = r.distinct_domains.length >= 2 ? 'bg-rose-50 border-rose-300 text-rose-800' : r.n_signals ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-emerald-50 border-emerald-300 text-emerald-800';
+    let html = `<div class="border rounded p-3 ${sevColor} mb-3">
+        <div class="font-semibold">${r.risk_message || '✓ 현재 위험 신호 없음'}</div>
+        <div class="text-xs mt-1">신호 ${r.n_signals}건 · 도메인 ${r.distinct_domains.length}개 · 신고 케이스 ${r.cases.length}건</div>
+    </div>`;
+    if (r.signals.length) {
+        html += '<div class="text-xs font-semibold mb-1">최근 신호</div><ul class="text-xs space-y-1 mb-3">';
+        for (const s of r.signals.slice(0,8)) {
+            html += `<li class="border-l-2 border-slate-300 pl-2">${s.created_at?.slice(0,10)} · ${s.channel}/${s.domain || 'meta'} · ${s.severity} ${s.source_ref ? '· ' + s.source_ref : ''}</li>`;
+        }
+        html += '</ul>';
+    }
+    if (r.previous_responses && r.previous_responses.length) {
+        html += '<div class="text-xs font-semibold mb-1">이전 소명</div><ul class="text-xs space-y-0.5">';
+        for (const p of r.previous_responses) {
+            html += `<li>${p.created_at?.slice(0,10)} · ${p.accepted ? '✓ 수용' : '검토 중'} · ${p.response_text.slice(0, 80)}…</li>`;
+        }
+        html += '</ul>';
+    }
+    document.getElementById('check-result').innerHTML = html;
+    document.getElementById('resp-card').classList.remove('hidden');
+    document.getElementById('resp-card').dataset.company = q;
+}
+
+async function submitRespond() {
+    const company = document.getElementById('resp-card').dataset.company;
+    const text = document.getElementById('resp-text').value.trim();
+    if (text.length < 30) { alert('30자 이상'); return; }
+    const r = await fetch('/api/owner-notice/respond', {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({company, response_text: text}),
+    });
+    if (!r.ok) {
+        const e = await r.json().catch(()=>({}));
+        alert('실패: ' + (e.detail || r.status)); return;
+    }
+    alert('소명 등록 완료. 감독관이 검토합니다.');
+    document.getElementById('resp-text').value = '';
+    checkSignals();
+}
+</script>
+{% endblock %}

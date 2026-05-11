@@ -1,0 +1,178 @@
+﻿{% extends "base.html" %}
+{% block title %}내 사업장 점수{% endblock %}
+{% block content %}
+<div class="mb-4 max-w-md mx-auto md:mx-0">
+    <div class="flex items-baseline gap-2 flex-wrap">
+        <h1 class="text-xl font-bold">📱 Pay — 내 사업장 임금 안전 점수</h1>
+        <span class="chip chip-low">코어 ② 근속(임금)</span>
+    </div>
+    <p class="text-xs text-slate-600 mt-1">
+        사업장명 1번 입력 → 위험도 + 오늘 해야 할 일 + 체불 발생 D+90 행동 가이드 한 화면.
+        <b>장애인 사업장은 자동 우선 보호 (위험 1.25배 가중)</b>.
+    </p>
+</div>
+
+<section class="card max-w-md mx-auto md:mx-0 mb-4">
+    <form onsubmit="loadMe(event)" class="flex gap-2">
+        <input id="me-input" class="input flex-1" placeholder="회사명 (예: 효성컴퓨터학원)" required />
+        <button class="btn-primary">조회</button>
+    </form>
+    <div class="text-[11px] text-slate-500 mt-2">
+        샘플:
+        <button onclick="setQ('세이프티팜')" class="text-blue-600 underline">세이프티팜</button>
+        ·
+        <button onclick="setQ('효성컴퓨터학원')" class="text-blue-600 underline">효성컴퓨터학원</button>
+        ·
+        <button onclick="setQ('스타벅스')" class="text-blue-600 underline">스타벅스</button>
+    </div>
+</section>
+
+<div id="me-result" class="hidden">
+    <!-- 메인 점수 카드 -->
+    <section class="card max-w-md mx-auto md:mx-0 mb-4 text-center" id="score-card">
+        <div class="text-xs text-slate-500" id="me-company-label">회사</div>
+        <div class="text-7xl font-extrabold mono mt-2" id="me-score">-</div>
+        <div class="text-2xl font-bold mt-1" id="me-grade">-</div>
+        <div class="text-sm text-slate-600" id="me-label">-</div>
+        <div class="text-[11px] text-slate-400 mt-2" id="me-confidence">-</div>
+    </section>
+
+    <!-- 오늘 해야 할 일 -->
+    <section class="card max-w-md mx-auto md:mx-0 mb-4">
+        <h2 class="font-semibold mb-2">📌 오늘 해야 할 일</h2>
+        <ul id="me-today" class="space-y-2 text-sm"></ul>
+    </section>
+
+    <!-- 임금 D-day -->
+    <section class="card max-w-md mx-auto md:mx-0 mb-4 bg-slate-900 text-white">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-xs opacity-70">다음 임금일까지</div>
+                <div class="text-3xl font-bold mono mt-1"><span id="me-dday">-</span><span class="text-sm font-normal opacity-70 ml-1">일</span></div>
+                <div class="text-[11px] opacity-60 mt-1" id="me-dday-date"></div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs opacity-70">미수령 시</div>
+                <a href="/cases" class="btn-sm bg-rose-500 text-white mt-1 inline-block">즉시 신고하기</a>
+            </div>
+        </div>
+        <div class="mt-3 pt-2 border-t border-slate-700 flex items-center gap-2 text-xs">
+            <label class="opacity-80">우리 회사 임금일:</label>
+            <select id="payday-select" class="bg-slate-800 text-white rounded px-2 py-1 text-xs">
+                <option value="25">매월 25일</option>
+                <option value="10">매월 10일</option>
+                <option value="15">매월 15일</option>
+                <option value="20">매월 20일</option>
+                <option value="last">월말</option>
+            </select>
+            <button onclick="savePayday()" class="bg-rose-500 px-2 py-1 rounded">저장 + 알림 등록</button>
+        </div>
+        <div class="text-[10px] opacity-60 mt-2">설정 저장 시 임금일 +3일 후 자동으로 체크인 알림이 발송됩니다.</div>
+    </section>
+
+    <!-- 요약 통계 -->
+    <section class="grid grid-cols-2 gap-3 max-w-md mx-auto md:mx-0 mb-4">
+        <div class="card text-center"><div class="text-xs text-slate-500">명단 매칭</div><div class="text-2xl font-bold mono" id="me-list">0</div></div>
+        <div class="card text-center"><div class="text-xs text-slate-500">누적 신고</div><div class="text-2xl font-bold mono" id="me-cases">0</div></div>
+        <div class="card text-center"><div class="text-xs text-slate-500">신호 누적</div><div class="text-2xl font-bold mono" id="me-sigs">0</div></div>
+        <div class="card text-center"><div class="text-xs text-slate-500">신뢰도(누적)</div><div class="text-2xl font-bold mono" id="me-trust">0</div></div>
+    </section>
+
+    <!-- 체불 발생 행동 타임라인 -->
+    <section class="card max-w-md mx-auto md:mx-0 mb-4">
+        <h2 class="font-semibold mb-3">⏱ 체불 발생 시 D+0~D+90 행동 가이드</h2>
+        <div id="me-timeline" class="space-y-3 text-sm"></div>
+    </section>
+
+    <!-- 공유 카드 -->
+    <section class="card max-w-md mx-auto md:mx-0 mb-4">
+        <h2 class="font-semibold mb-2">🔗 익명 결과 공유</h2>
+        <div class="text-xs text-slate-500 mb-2">사업장명을 노출하지 않고 점수·등급만 공유 가능 (보복·명예훼손 차단).</div>
+        <div id="share-preview" class="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center"></div>
+        <div class="flex gap-2 mt-2">
+            <button onclick="copyShare()" class="btn-sm btn-ghost flex-1">URL 복사</button>
+            <button onclick="downloadCard()" class="btn-sm btn-ghost flex-1">이미지 저장 (스크린샷)</button>
+        </div>
+    </section>
+</div>
+
+<script>
+function setQ(v) { document.getElementById('me-input').value = v; loadMe(new Event('submit')); }
+
+async function loadMe(ev) {
+    if (ev) ev.preventDefault();
+    const co = document.getElementById('me-input').value.trim();
+    if (!co) return;
+    const r = await fetch('/api/me/profile/' + encodeURIComponent(co)).then(r => r.json());
+    document.getElementById('me-result').classList.remove('hidden');
+    document.getElementById('me-company-label').textContent = co;
+
+    const s = r.safety;
+    const sc = document.getElementById('me-score');
+    sc.textContent = s.score;
+    sc.style.color = s.color;
+    document.getElementById('me-grade').textContent = s.grade;
+    document.getElementById('me-grade').style.color = s.color;
+    document.getElementById('me-label').textContent = s.label;
+    document.getElementById('me-confidence').textContent =
+        `confidence: ${s.confidence} · ${s.sample_note}`;
+
+    document.getElementById('me-today').innerHTML = (r.today_actions||[]).map(a => `
+        <li class="flex items-start gap-2">
+            <span class="text-lg">${a.icon}</span>
+            <span class="flex-1">${a.text}${a.link ? `<a href="${a.link}" class="text-blue-600 underline ml-1">→</a>` : ''}</span>
+        </li>`).join('');
+
+    document.getElementById('me-dday').textContent = r.next_payday_d_day;
+    document.getElementById('me-dday-date').textContent = r.next_payday_date;
+
+    const sm = r.summary;
+    document.getElementById('me-list').textContent = sm.list_match;
+    document.getElementById('me-cases').textContent = sm.n_cases;
+    document.getElementById('me-sigs').textContent = sm.n_signals;
+    document.getElementById('me-trust').textContent = sm.trust_score;
+
+    document.getElementById('me-timeline').innerHTML = (r.timeline||[]).map(t => `
+        <div class="border-l-4 border-rose-300 pl-3">
+            <div class="font-semibold">${t.phase}</div>
+            <ul class="text-xs text-slate-700 mt-1 space-y-0.5">
+                ${t.actions.map(a => `<li>• ${a.text} <span class="text-slate-400">(${a.law})</span></li>`).join('')}
+            </ul>
+        </div>`).join('');
+
+    const sh = r.share_card;
+    document.getElementById('share-preview').innerHTML = `
+        <div class="text-xs text-slate-500">${sh.tag}</div>
+        <div class="text-5xl font-bold mt-2" style="color:${s.color}">${sh.grade}</div>
+        <div class="text-xs text-slate-500 mt-1">점수 ${sh.score} · 표본 ${sm.n_signals}건</div>
+        <div class="text-[10px] text-slate-400 mt-2">사업장명 비공개 — WageGuard에서 직접 검색</div>`;
+}
+
+function savePayday() {
+    const co = document.getElementById('me-input').value.trim();
+    if (!co) { alert('회사명 먼저 검색하세요'); return; }
+    const day = document.getElementById('payday-select').value;
+    localStorage.setItem('WageGuard.payday', JSON.stringify({company: co, day}));
+    // 워치 등록 + 알림
+    fetch('/api/watch', {
+        method: 'POST', headers: {'content-type':'application/json'},
+        body: JSON.stringify({label: co + ` (임금일 ${day})`, company_query: co}),
+    }).then(r => {
+        if (r.ok) alert(`등록됨!\n${co} 임금일: 매월 ${day === 'last' ? '말일' : day + '일'}\n+3일 미수령 시 자동 체크인 알림 발송`);
+        else alert('등록 실패');
+    });
+}
+
+function copyShare() {
+    navigator.clipboard.writeText(location.origin + '/me?q=' + encodeURIComponent(document.getElementById('me-input').value));
+    alert('URL 복사됨');
+}
+function downloadCard() {
+    alert('Ctrl+Shift+S 또는 모바일 스크린샷으로 [익명 결과 공유] 카드 캡처 가능');
+}
+
+// URL ?q= 자동 로드
+const urlQ = new URLSearchParams(location.search).get('q');
+if (urlQ) { document.getElementById('me-input').value = urlQ; loadMe(); }
+</script>
+{% endblock %}

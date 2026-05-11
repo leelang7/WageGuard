@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}장애인 근로자 보호{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">♿ 장애인 근로자 임금 안전 — 우선 보호 모듈</h1>
+            <span class="chip chip-low">주관기관 데이터 결합</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            <b>한국장애인고용공단(KEAD)</b>·한국고용정보원 데이터를 직접 결합한 모듈.
+            장애인 근로자는 신고 진입장벽이 더 크고, 체불 시 생계 영향이 더 큽니다 — 시스템이 자동으로 우선 보호합니다.
+        </p>
+    </header>
+
+    <!-- 데이터 카탈로그 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">결합 데이터셋 (data.go.kr 자동승인)</h2>
+        <div id="catalog" class="text-sm text-slate-500">로드 중…</div>
+    </div>
+
+    <!-- 통합 검증 박스 — 신청만 한 게 아니라는 증거 -->
+    <div class="card border-emerald-300 bg-emerald-50">
+        <h2 class="text-lg font-bold mb-3 text-emerald-900">📊 KEAD × ML 통합 증거 (라이브)</h2>
+        <div id="probe" class="text-sm text-slate-700">로드 중…</div>
+    </div>
+
+    <!-- 교차 매칭 -->
+    <div class="card border-rose-200 bg-rose-50">
+        <h2 class="text-lg font-bold mb-3 text-rose-900">체불사업주 × 장애인 근로자 교차 영향 추정</h2>
+        <div id="overlay" class="text-sm text-slate-700">로드 중…</div>
+    </div>
+
+    <!-- 위험 가중 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">위험 점수 가중 시뮬레이터</h2>
+        <p class="text-xs text-slate-600 mb-3">장애인 근로자 활동 사업장은 체불 시 피해가 가중되므로 위험 점수를 25% 가산합니다.</p>
+        <div class="flex gap-3 items-end flex-wrap">
+            <div>
+                <label class="text-xs text-slate-500 block">기본 위험 점수</label>
+                <input id="base-score" type="number" min="0" max="100" value="50" class="input w-32" />
+            </div>
+            <button onclick="calcWeight()" class="btn-primary">가중 적용</button>
+        </div>
+        <div id="weight-result" class="mt-4"></div>
+    </div>
+
+    <!-- 정책 정합 -->
+    <div class="card bg-slate-50">
+        <h2 class="text-lg font-bold mb-2">왜 우선 보호가 필요한가</h2>
+        <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+            <li>장애인 근로자는 인지·물리 접근성으로 인해 신고 진입장벽이 더 큼</li>
+            <li>체불 동일 금액이라도 생계 영향이 비장애 대비 큼 (저축률 격차)</li>
+            <li>의무고용율 3.1% — 약 25만 명 장애인 근로자 잠재 영향 대상</li>
+            <li>KEAD 근로지원인 활동 사업장 = 장애인 정확 식별 가능 → 자동 매칭</li>
+            <li>이중 보호: 시스템 위험 가산점 + 자동 신고 양식 확대</li>
+        </ul>
+    </div>
+
+    <!-- 활용 포인트 -->
+    <div class="card border-emerald-200 bg-emerald-50">
+        <h2 class="text-lg font-bold mb-2 text-emerald-900">KEAD 데이터 결합의 의미</h2>
+        <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+            <li><b>정밀 식별</b> — KEAD 근로지원인 활동 사업장 = 장애인 근로자 재직 사실 자동 확인</li>
+            <li><b>우선 보호</b> — 체불 발생 시 피해가 큰 취약 사업장을 AI가 자동으로 상위 노출</li>
+            <li><b>확산 가능</b> — 동일 가중 메커니즘으로 외국인·고령·청년 등 취약 근로자 그룹 확장</li>
+            <li><b>운영 효율</b> — 자동 매칭 + 자동 가산 — 점검관 추가 작업 0</li>
+        </ul>
+    </div>
+
+</section>
+
+<script>
+async function loadCatalog() {
+    try {
+        const r = await fetch('/api/kead/catalog');
+        const d = await r.json();
+        let html = `<div class="text-xs text-slate-500 mb-2">기관: <b>${d['주관기관'].join(' · ')}</b></div>
+            <table class="t"><thead><tr><th>데이터셋</th><th>ID</th><th>활용 목적</th><th class="text-right">승인</th></tr></thead><tbody>`;
+        d.datasets.forEach(ds => {
+            html += `<tr>
+                <td>${ds.name}</td>
+                <td class="mono text-xs">${ds.dataset_id}</td>
+                <td class="text-xs text-slate-600">${ds.purpose}</td>
+                <td class="text-right"><span class="chip chip-low">자동승인</span></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('catalog').innerHTML = html;
+    } catch (e) {
+        document.getElementById('catalog').textContent = '오류';
+    }
+}
+
+async function loadOverlay() {
+    try {
+        const r = await fetch('/api/kead/disability-overlay');
+        const d = await r.json();
+        let html = `
+            <div class="grid md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-white border border-rose-100 rounded-xl p-4">
+                    <div class="text-xs text-slate-500 mb-1">체불사업주 누적</div>
+                    <div class="text-3xl font-extrabold mono">${d.total_defaulters.toLocaleString()}</div>
+                </div>
+                <div class="bg-white border border-rose-100 rounded-xl p-4">
+                    <div class="text-xs text-slate-500 mb-1">장애인 근로자 추정 영향 (의무 3.1%)</div>
+                    <div class="text-3xl font-extrabold mono text-rose-700">${d.estimated_disability_workers_affected.toLocaleString()}</div>
+                </div>
+            </div>
+            <div class="text-xs text-slate-500 mb-2">${d.method}</div>
+            <table class="t"><thead><tr><th>업종</th><th class="text-right">체불 사업장</th><th class="text-right">장애인 근로자 영향</th></tr></thead><tbody>`;
+        d.by_industry.forEach(b => {
+            html += `<tr>
+                <td>${b.industry}</td>
+                <td class="text-right mono">${b.defaulter_count}</td>
+                <td class="text-right mono text-rose-700">${b.estimated_disability_workers_affected}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        html += '<ul class="text-xs text-slate-600 mt-3 list-disc pl-5">';
+        d.rationale.forEach(r => { html += `<li>${r}</li>`; });
+        html += '</ul>';
+        document.getElementById('overlay').innerHTML = html;
+    } catch (e) {
+        document.getElementById('overlay').textContent = '오류';
+    }
+}
+
+async function calcWeight() {
+    const base = parseInt(document.getElementById('base-score').value || 50);
+    const r = await fetch(`/api/kead/risk-weight?base_score=${base}`);
+    const d = await r.json();
+    document.getElementById('weight-result').innerHTML = `
+        <div class="grid md:grid-cols-3 gap-3">
+            <div class="bg-slate-50 border rounded-xl p-3 text-center">
+                <div class="text-xs text-slate-500 mb-1">기본 점수</div>
+                <div class="text-3xl font-extrabold mono">${d.base_score}</div>
+            </div>
+            <div class="text-center text-slate-400 text-xl flex items-center justify-center">→</div>
+            <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+                <div class="text-xs text-rose-700 mb-1">장애인 가중 적용</div>
+                <div class="text-3xl font-extrabold mono text-rose-700">${d.disability_weighted_score}</div>
+                <div class="text-xs text-slate-500 mt-1">×${d.weight_factor}</div>
+            </div>
+        </div>
+        <div class="text-xs text-slate-500 mt-3">${d.rationale}</div>
+    `;
+}
+
+async function loadProbe() {
+    try {
+        const r = await fetch('/api/kead/probe');
+        const d = await r.json();
+        let html = `
+            <div class="grid md:grid-cols-2 gap-3 mb-3">
+                <div class="bg-white rounded-lg p-3 border border-emerald-200">
+                    <div class="text-xs text-slate-500 mb-1">활용신청 데이터셋</div>
+                    <div class="text-sm">`;
+        d.datasets_applied.forEach(ds => {
+            html += `<div class="mono text-xs">${ds.dataset_id} · ${ds.name} <span class="chip chip-low">${ds.status}</span></div>`;
+        });
+        html += `</div></div>
+                <div class="bg-white rounded-lg p-3 border border-emerald-200">
+                    <div class="text-xs text-slate-500 mb-1">ML 결합 특성</div>`;
+        d.integration_evidence.ml_features_using_kead.forEach(f => {
+            html += `<div class="mono text-xs"><span class="chip chip-low">결합</span> ${f}</div>`;
+        });
+        const ab = d.integration_evidence.ablation_live || {};
+        if (ab.delta_f1) {
+            html += `
+            </div></div>
+            <div class="bg-rose-50 border border-rose-200 rounded-lg p-3 my-3">
+                <div class="text-xs text-rose-700 font-semibold mb-1">KEAD 결합 Ablation — 라이브 검증</div>
+                <div class="flex gap-4 text-center text-xs">
+                    <div><div class="text-lg font-extrabold text-slate-600">${(ab.base_7_f1*100).toFixed(1)}%</div><div class="text-slate-500">기본 7특성 F1</div></div>
+                    <div class="text-slate-400 text-xl flex items-center">→</div>
+                    <div><div class="text-lg font-extrabold text-rose-700">${(ab.kead_9_f1*100).toFixed(1)}%</div><div class="text-slate-500">KEAD 9특성 F1</div></div>
+                    <div class="text-slate-400 text-xl flex items-center">=</div>
+                    <div class="bg-rose-100 rounded-lg p-2"><div class="text-lg font-extrabold text-rose-800">${ab.delta_pct}</div><div class="text-slate-500">F1 향상</div></div>
+                </div>
+            </div>`;
+        } else {
+            html += `</div></div>`;
+        }
+        html += `<div class="text-xs text-slate-700">${d.rationale}</div>
+            <div class="text-xs text-slate-500 mt-2">검증: <a href="/api/ml/info" class="text-emerald-700 underline" target="_blank">/api/ml/info</a> · <a href="/api/ml/ablation" class="text-emerald-700 underline" target="_blank">/api/ml/ablation</a> · <a href="/api/kead/probe" class="text-emerald-700 underline" target="_blank">/api/kead/probe</a></div>`;
+        document.getElementById('probe').innerHTML = html;
+    } catch (e) {
+        document.getElementById('probe').textContent = '오류';
+    }
+}
+
+loadCatalog();
+loadOverlay();
+loadProbe();
+</script>
+{% endblock %}

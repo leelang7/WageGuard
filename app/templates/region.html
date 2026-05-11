@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}지역 드릴다운{% endblock %}
+{% block content %}
+<div class="flex items-center gap-4 mb-6">
+    <h1 class="text-xl font-bold">지역별 임금체불 + 거시지표</h1>
+    <select id="region-select" class="border rounded px-3 py-1.5 text-sm"
+            onchange="loadRegion(this.value)"></select>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="stat-card">
+        <h2 class="font-semibold mb-3">업종별 분포</h2>
+        <div id="region-industry-chart" style="height: 360px;"></div>
+    </div>
+    <div class="stat-card">
+        <h2 class="font-semibold mb-3">EIS 실업급여 (지역 시군구 1건 샘플)</h2>
+        <div class="text-xs text-slate-500 mb-2" id="eis-status">조회 중…</div>
+        <div id="eis-chart" style="height: 360px;"></div>
+    </div>
+</section>
+
+<section class="stat-card">
+    <h2 class="font-semibold mb-3">상위 체불 사업장 (해당 지역) <span class="text-xs text-slate-400 ml-2" id="region-rows-info"></span></h2>
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">차수</th>
+                <th class="py-2">사업장</th>
+                <th class="py-2">업종</th>
+                <th class="py-2 text-right">체불액</th>
+            </tr>
+        </thead>
+        <tbody id="region-rows"></tbody>
+    </table>
+</section>
+
+<script>
+async function loadRegionList() {
+    const items = await fetch('/api/stats/by-region').then(r => r.json());
+    const sel = document.getElementById('region-select');
+    sel.innerHTML = items.map(i => `<option value="${i.region}">${i.region} (${i.count})</option>`).join('');
+    if (items.length) loadRegion(items[0].region);
+}
+
+async function loadRegion(name) {
+    const data = await fetch(`/api/region/${encodeURIComponent(name)}`).then(r => r.json());
+
+    const c1 = echarts.init(document.getElementById('region-industry-chart'));
+    c1.setOption({
+        tooltip: { trigger: 'item' },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            data: data.by_industry.map(i => ({ name: i.industry, value: i.count })),
+            label: { formatter: '{b}\n{c}건' }
+        }]
+    });
+
+    const tbody = document.getElementById('region-rows');
+    tbody.innerHTML = data.rows.map(r => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2">${r.round}</td>
+            <td class="py-2">${r.company}</td>
+            <td class="py-2">${r.industry}</td>
+            <td class="py-2 text-right">${fmtKRWFull(r.amount)}</td>
+        </tr>
+    `).join('');
+    document.getElementById('region-rows-info').textContent = `${data.rows.length}건`;
+
+    // EIS 호출 (서버가 구체 시군구 1건 샘플로 가져옴)
+    document.getElementById('eis-status').textContent = '한국고용정보원 EIS API 호출 중…';
+    const eis = await fetch(`/api/macro/${encodeURIComponent(name)}`).then(r => r.json()).catch(() => null);
+    if (!eis || !eis.series) {
+        document.getElementById('eis-status').textContent = 'EIS 응답 없음 (시군구 매핑 필요)';
+        return;
+    }
+    document.getElementById('eis-status').textContent =
+        `EIS API · ${eis.region_label} · ${eis.year_month} · 응답 ${eis.fetched_in_ms}ms`;
+    const c2 = echarts.init(document.getElementById('eis-chart'));
+    c2.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: eis.series.map(s => s.name) },
+        xAxis: { type: 'category', data: eis.x },
+        yAxis: { type: 'value' },
+        series: eis.series.map(s => ({ ...s, type: 'line', smooth: true }))
+    });
+}
+loadRegionList();
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}제출 준비{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">📦 제출 준비 — D-day 체크리스트</h1>
+            <span class="chip chip-flat" id="d-day">…</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            제5회 고용노동 공공데이터·AI 활용 공모전 제출 준비 진행 상태.
+            시스템 자동 진행 + 본인 직접 액션 필요 항목 분리.
+        </p>
+    </header>
+
+    <!-- 진행률 카드 -->
+    <div class="grid md:grid-cols-3 gap-3">
+        <div class="card border-emerald-200 bg-emerald-50">
+            <div class="text-xs text-emerald-700 mb-1">시스템 자동 진행</div>
+            <div class="text-3xl font-extrabold mono text-emerald-700" id="auto-pct">…</div>
+            <div class="text-xs text-slate-500" id="auto-prog">…</div>
+            <div class="bg-emerald-100 h-2 rounded mt-2"><div id="auto-bar" class="bg-emerald-600 h-2 rounded" style="width:0%"></div></div>
+        </div>
+        <div class="card border-rose-200 bg-rose-50">
+            <div class="text-xs text-rose-700 mb-1">본인 직접 액션 필요</div>
+            <div class="text-3xl font-extrabold mono text-rose-700" id="user-pct">…</div>
+            <div class="text-xs text-slate-500" id="user-prog">…</div>
+            <div class="bg-rose-100 h-2 rounded mt-2"><div id="user-bar" class="bg-rose-600 h-2 rounded" style="width:0%"></div></div>
+        </div>
+        <div class="card border-slate-300">
+            <div class="text-xs text-slate-500 mb-1">D-day</div>
+            <div class="text-3xl font-extrabold mono" id="days-left">…</div>
+            <div class="text-xs text-slate-500" id="deadline-info">…</div>
+        </div>
+    </div>
+
+    <!-- 섹션별 항목 -->
+    <div id="sections" class="space-y-4 text-sm text-slate-500">로드 중…</div>
+
+    <!-- 자료 다운로드 -->
+    <div class="card border-indigo-300 bg-indigo-50">
+        <h2 class="text-lg font-bold mb-3 text-indigo-900">📥 자료 다운로드 (즉시 사용)</h2>
+        <div class="grid md:grid-cols-3 gap-3 text-sm">
+            <a href="/api/submit/business-plan.md" download class="btn-primary">📄 사업계획서 .md</a>
+            <a href="/api/submit/data-spec-form.md" download class="btn-primary">📄 데이터명세서 .md</a>
+            <a href="/api/submit/video-script.md" download class="btn-primary">📄 동영상 스크립트 .md</a>
+            <a href="/onepager" target="_blank" class="btn-ghost">🖨 1p 요약 인쇄</a>
+            <a href="/api/audit/axes" target="_blank" class="btn-ghost">⚖ 5축 점수 JSON</a>
+            <a href="/api/ops/health" target="_blank" class="btn-ghost">❤ 시스템 헬스</a>
+        </div>
+    </div>
+
+</section>
+
+<script>
+async function loadCheck() {
+    try {
+        const d = await fetch('/api/submit/checklist').then(r => r.json());
+        document.getElementById('d-day').textContent = `D-${d.days_left} (${d.deadline})`;
+        document.getElementById('auto-pct').textContent = d.auto_pct + '%';
+        document.getElementById('auto-prog').textContent = d.auto_progress + ' 항목';
+        document.getElementById('auto-bar').style.width = d.auto_pct + '%';
+        document.getElementById('user-pct').textContent = d.user_pct + '%';
+        document.getElementById('user-prog').textContent = d.user_progress + ' 항목';
+        document.getElementById('user-bar').style.width = d.user_pct + '%';
+        document.getElementById('days-left').textContent = d.days_left + '일';
+        document.getElementById('deadline-info').textContent = `마감 ${d.deadline} 16:00 KST`;
+
+        let html = '';
+        d.sections.forEach(s => {
+            const pct = Math.round(s.done / s.total * 100);
+            html += `
+                <div class="card">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-bold">${s.name}</h3>
+                        <div class="text-xs text-slate-500">${s.done}/${s.total} <span class="font-bold text-slate-700">(${pct}%)</span></div>
+                    </div>
+                    <table class="t text-sm"><tbody>`;
+            s.items.forEach(it => {
+                const icon = it.done ? '<span class="text-emerald-600">✓</span>' : '<span class="text-slate-400">○</span>';
+                const valBadge = it.value ? `<span class="chip ${it.done ? 'chip-low' : 'chip-flat'} text-xs">${it.value}</span>` : '';
+                html += `<tr>
+                    <td class="w-8 text-center">${icon}</td>
+                    <td><b>${it.name}</b><div class="text-xs text-slate-500">${it.detail}</div></td>
+                    <td class="text-right">${valBadge}${it.auto ? '<span class="text-xs text-slate-400">자동</span>' : '<span class="text-xs text-rose-500">본인</span>'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+        });
+        document.getElementById('sections').innerHTML = html;
+    } catch (e) {
+        document.getElementById('sections').textContent = '오류';
+    }
+}
+loadCheck();
+</script>
+{% endblock %}

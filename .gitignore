@@ -1,0 +1,47 @@
+# 환경변수 / 시크릿
+.env
+.env.local
+*.secret
+
+# DB / 데이터 (런타임 생성)
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# 로그 / 임시
+*.log
+uvicorn_out.txt
+uvicorn_err.txt
+*.tmp
+*.bak
+
+# IDE / 에디터
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 용량 큰 바이너리
+*.pdf
+*.hwp
+*.pptx
+*.xlsx
+*.docx

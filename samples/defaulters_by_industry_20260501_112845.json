@@ -1,0 +1,104 @@
+[
+  {
+    "industry": "건설업",
+    "count": 282,
+    "total_amt": 17454118786,
+    "avg_amt": 61894038
+  },
+  {
+    "industry": "제조업",
+    "count": 186,
+    "total_amt": 15744807921,
+    "avg_amt": 84649504
+  },
+  {
+    "industry": "도매 및 소매업",
+    "count": 74,
+    "total_amt": 5697135073,
+    "avg_amt": 76988311
+  },
+  {
+    "industry": "정보통신업",
+    "count": 43,
+    "total_amt": 5020876866,
+    "avg_amt": 116764578
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "count": 58,
+    "total_amt": 4263869766,
+    "avg_amt": 73514995
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "count": 35,
+    "total_amt": 2887936850,
+    "avg_amt": 82512481
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "count": 36,
+    "total_amt": 2640127434,
+    "avg_amt": 73336873
+  },
+  {
+    "industry": "운수 및 창고업",
+    "count": 10,
+    "total_amt": 2158676562,
+    "avg_amt": 215867656
+  },
+  {
+    "industry": "예술  스포츠 및 여가관련 서비스업",
+    "count": 12,
+    "total_amt": 1676251538,
+    "avg_amt": 139687628
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "count": 11,
+    "total_amt": 1411189800,
+    "avg_amt": 128289981
+  },
+  {
+    "industry": "협회 및 단체  수리 및 기타 개인 서비스업",
+    "count": 14,
+    "total_amt": 1236379023,
+    "avg_amt": 88312787
+  },
+  {
+    "industry": "교육 서비스업",
+    "count": 11,
+    "total_amt": 611448967,
+    "avg_amt": 55586269
+  },
+  {
+    "industry": "부동산업",
+    "count": 10,
+    "total_amt": 596446330,
+    "avg_amt": 59644633
+  },
+  {
+    "industry": "농업  임업 및 어업",
+    "count": 4,
+    "total_amt": 287240976,
+    "avg_amt": 71810244
+  },
+  {
+    "industry": "광업",
+    "count": 1,
+    "total_amt": 62656238,
+    "avg_amt": 62656238
+  },
+  {
+    "industry": "수도  하수 및 폐기물 처리  원료 재생업",
+    "count": 1,
+    "total_amt": 55669290,
+    "avg_amt": 55669290
+  },
+  {
+    "industry": "금융 및 보험업",
+    "count": 1,
+    "total_amt": 38946846,
+    "avg_amt": 38946846
+  }
+]

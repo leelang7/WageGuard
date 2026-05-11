@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}DART 재무위험 분석{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <div class="flex items-baseline gap-2 flex-wrap">
+        <h1 class="text-xl font-bold">📊 DART 재무위험 분석 — 체불 선행지표</h1>
+        <span class="chip chip-high">체불 선행지표</span>
+    </div>
+    <p class="text-sm text-slate-600 mt-1">
+        금융감독원 전자공시(DART)의 재무제표에서 <b>부채비율·영업손실·자본잠식·유동비율</b>을 추출해
+        임금체불 발생 전 재무 위험 신호를 포착합니다.<br>
+        <span class="text-xs text-amber-700">※ 상장사 + 사업보고서 제출 비상장사 커버. 소규모 영세 사업장 미수록.</span>
+    </p>
+</div>
+
+<section class="card mb-4 border-l-4 border-rose-500">
+    <h2 class="font-semibold mb-3">🔍 회사 재무위험 진단</h2>
+    <div class="flex gap-2 flex-wrap">
+        <input id="dart-company" type="text" placeholder="회사명 입력 (예: 삼부토건, 범양건영)" class="input flex-1 min-w-[180px]" />
+        <button onclick="runDart()" class="btn-primary">분석</button>
+        <button onclick="setDart('삼부토건')" class="btn-ghost btn-sm">삼부토건 (자본잠식)</button>
+        <button onclick="setDart('범양건영')" class="btn-ghost btn-sm">범양건영 (고위험)</button>
+        <button onclick="setDart('삼성전자')" class="btn-ghost btn-sm">삼성전자 (정상)</button>
+    </div>
+    <div id="dart-result" class="mt-4 text-sm text-slate-500">회사명을 입력하고 분석 버튼을 누르세요.</div>
+</section>
+
+<section class="card mb-4 border-l-4 border-indigo-500">
+    <h2 class="font-semibold mb-3">🧠 체불 선행지표 4종</h2>
+    <div class="grid md:grid-cols-2 gap-3 text-sm">
+        <div class="bg-rose-50 border border-rose-200 rounded p-3">
+            <div class="font-semibold text-rose-700">부채비율 &gt; 300%</div>
+            <div class="text-xs text-slate-600 mt-1">Altman Z-score 구성요소. 유동성 위기 전조 — 인건비 연체로 직결.</div>
+        </div>
+        <div class="bg-orange-50 border border-orange-200 rounded p-3">
+            <div class="font-semibold text-orange-700">영업이익 &lt; 0</div>
+            <div class="text-xs text-slate-600 mt-1">본업 손실 지속 → 현금흐름 고갈 → 인건비 먼저 지급 불능화.</div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded p-3">
+            <div class="font-semibold text-red-700">자본총계 &lt; 0 (자본잠식)</div>
+            <div class="text-xs text-slate-600 mt-1">이미 재무 붕괴. 부채가 자산을 초과 — 즉시 점검 대상.</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded p-3">
+            <div class="font-semibold text-amber-700">유동비율 &lt; 100%</div>
+            <div class="text-xs text-slate-600 mt-1">단기 지급 능력 상실. 1년 내 지급할 부채 &gt; 유동자산.</div>
+        </div>
+    </div>
+</section>
+
+<section class="card mb-4 border-l-4 border-rose-400">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">🏆 재무위험 TOP 기업 (배치 적재 캐시 — <span id="dart-cache-count">…</span>건)</h2>
+        <span class="text-xs text-slate-500">OPENDART 실데이터 · 상장/공시기업</span>
+    </div>
+    <div id="dart-leaderboard" class="text-sm text-slate-500">로드 중…</div>
+</section>
+
+<section class="card mb-4">
+    <h2 class="font-semibold mb-2">📋 API 연결 상태</h2>
+    <div id="dart-catalog" class="text-sm text-slate-500">로드 중…</div>
+</section>
+
+<script>
+function setDart(name) {
+    document.getElementById('dart-company').value = name;
+    runDart();
+}
+
+async function runDart() {
+    const company = document.getElementById('dart-company').value.trim();
+    if (!company) return;
+    document.getElementById('dart-result').innerHTML = '<div class="text-slate-400">분석 중…</div>';
+    let r;
+    try {
+        r = await fetch(`/api/dart/diagnose?company=${encodeURIComponent(company)}&add_to_cluster=false`)
+            .then(r => r.json());
+    } catch (e) {
+        document.getElementById('dart-result').innerHTML =
+            `<div class="text-rose-700 bg-rose-50 border border-rose-200 rounded p-3">
+                네트워크 오류: ${e.message || e}
+             </div>`;
+        return;
+    }
+
+    if (!r.available) {
+        document.getElementById('dart-result').innerHTML =
+            `<div class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                <b>조회 불가:</b> ${r.reason || '미상'}
+             </div>`;
+        return;
+    }
+
+    const sig = r.signals || [];
+    const fin = r.financials || {};
+    const scoreColor = r.risk_score >= 60 ? 'text-red-600' : r.risk_score >= 30 ? 'text-amber-600' : 'text-emerald-600';
+    document.getElementById('dart-result').innerHTML = `
+        <div class="grid md:grid-cols-3 gap-4">
+            <div class="col-span-1">
+                <div class="text-center bg-slate-900 text-white rounded-xl p-4">
+                    <div class="text-xs opacity-60 mb-1">${r.corp?.corp_name || company}</div>
+                    <div class="text-5xl font-extrabold mono ${scoreColor}">${r.risk_score}</div>
+                    <div class="text-xs mt-1 opacity-70">/100 재무위험도</div>
+                    <div class="text-xs mt-2 ${r.risk_score >= 60 ? 'text-rose-300' : 'text-emerald-300'}">
+                        ${r.risk_score >= 60 ? '⚠ 고위험' : r.risk_score >= 30 ? '주의' : '정상 범위'}
+                    </div>
+                </div>
+                <div class="mt-3 text-xs text-slate-500">기준연도: ${r.year}년 · ${r.corp?.corp_cls === 'Y' ? '유가증권' : r.corp?.corp_cls === 'K' ? '코스닥' : '비상장'}</div>
+            </div>
+            <div class="col-span-2">
+                <div class="text-xs text-slate-500 mb-2">재무 지표</div>
+                <table class="t text-xs w-full mb-3">
+                    <tbody>
+                        <tr><td>부채비율</td><td class="mono font-bold">${fin.debt_ratio != null ? fin.debt_ratio.toFixed(1)+'%' : 'N/A'}</td></tr>
+                        <tr><td>유동비율</td><td class="mono font-bold">${fin.current_ratio != null ? fin.current_ratio.toFixed(1)+'%' : 'N/A'}</td></tr>
+                        <tr><td>자본총계</td><td class="mono">${fin.equity != null ? (fin.equity/1e8).toFixed(1)+'억원' : 'N/A'}</td></tr>
+                        <tr><td>영업이익</td><td class="mono ${fin.op_income < 0 ? 'text-red-600' : ''}">${fin.op_income != null ? (fin.op_income/1e8).toFixed(1)+'억원' : 'N/A'}</td></tr>
+                        <tr><td>당기순이익</td><td class="mono ${fin.net_income < 0 ? 'text-amber-600' : ''}">${fin.net_income != null ? (fin.net_income/1e8).toFixed(1)+'억원' : 'N/A'}</td></tr>
+                    </tbody>
+                </table>
+                ${sig.length ? `
+                <div class="text-xs text-slate-500 mb-1">위험 신호</div>
+                ${sig.map(s => `
+                    <div class="flex justify-between items-center border rounded p-2 mb-1 ${s.severity === 'critical' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}">
+                        <span class="text-xs">${s.label}</span>
+                        <span class="font-mono text-rose-600 text-xs">+${s.pts}</span>
+                    </div>`).join('')}` : '<div class="text-emerald-700 text-xs">위험 신호 없음</div>'}
+            </div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-3">출처: ${r.source || 'DART'}${r.note ? ' · ' + r.note : ''}</div>
+    `;
+}
+
+async function loadLeaderboard() {
+    try {
+        const d = await fetch('/api/dart/risk-cache?limit=200').then(r => r.json());
+        const total = d.count || 0;
+        const el = document.getElementById('dart-cache-count');
+        if (el) el.textContent = total.toLocaleString();
+        const top = (d.results || []).slice(0, 15);
+        if (!top.length) {
+            document.getElementById('dart-leaderboard').innerHTML = '<div class="text-slate-400">적재 데이터 없음. /api/dart/batch-risk 실행 후 확인.</div>';
+            return;
+        }
+        let html = '<table class="t text-xs w-full"><thead><tr><th>#</th><th>법인명</th><th class="text-right">위험점수</th><th>주요 신호</th><th class="text-right">자본총계</th></tr></thead><tbody>';
+        top.forEach((it, i) => {
+            const fin = it.financials || {};
+            const eq = fin.equity;
+            const eqStr = eq != null ? (eq < 0 ? `<span class="text-rose-700">${(eq/1e8).toFixed(0)}억</span>` : `${(eq/1e8).toFixed(0)}억`) : '-';
+            const sigs = it.signals || [];
+            const sig1 = sigs[0]?.label || '-';
+            const color = it.risk_score >= 70 ? 'chip-high' : it.risk_score >= 40 ? 'chip-med' : 'chip-flat';
+            html += `<tr>
+                <td>${i+1}</td>
+                <td><b>${it.corp_name}</b></td>
+                <td class="text-right"><span class="chip ${color}">${it.risk_score}</span></td>
+                <td class="text-xs text-slate-600">${sig1}</td>
+                <td class="text-right mono">${eqStr}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        html += `<div class="text-xs text-slate-400 mt-2">총 ${total}건 배치 적재 · 상장사 전체 중 ${total}개 재무위험 기업 식별</div>`;
+        document.getElementById('dart-leaderboard').innerHTML = html;
+    } catch (e) {
+        document.getElementById('dart-leaderboard').textContent = '오류: ' + e.message;
+    }
+}
+
+async function loadCatalog() {
+    const r = await fetch('/api/dart/catalog').then(r => r.json());
+    document.getElementById('dart-catalog').innerHTML = `
+        <div class="flex gap-3 flex-wrap text-xs">
+            <span class="chip ${r.available ? 'chip-low' : 'chip-flat'}">
+                OPENDART_KEY ${r.available ? '✓ 설정됨' : '✗ 미설정'}
+            </span>
+            <span class="text-slate-500">${r.coverage}</span>
+        </div>
+        <div class="mt-2 text-xs text-slate-500">
+            ${(r.risk_signals || []).map(s => `<div>· ${s}</div>`).join('')}
+        </div>
+    `;
+}
+loadCatalog();
+loadLeaderboard();
+
+document.getElementById('dart-company').addEventListener('keydown', e => { if (e.key === 'Enter') runDart(); });
+</script>
+{% endblock %}

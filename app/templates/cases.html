@@ -1,0 +1,271 @@
+﻿{% extends "base.html" %}
+{% block title %}신고 케이스{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <h1 class="text-xl font-bold">신고하기 · 진행 추적</h1>
+        <p class="text-sm text-slate-600 mt-1">근로자 신고 → 시스템 위험 자동 산출 → 감독관 처리 → 결과 통지</p>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="openModal()" class="bg-rose-600 text-white text-sm px-3 py-1.5 rounded">+ 신고 접수</button>
+        <a href="/checkin" class="btn-sm btn-ghost">📆 월별 체크인 →</a>
+        <a href="/watch" class="btn-sm btn-ghost">📡 워치 등록 →</a>
+        <select id="filter-status" onchange="load()" class="border rounded px-2 py-1 text-sm">
+            <option value="">전체</option>
+            <option value="received">접수</option>
+            <option value="investigating">조사 중</option>
+            <option value="resolved">처분 완료</option>
+            <option value="dismissed">종결</option>
+        </select>
+    </div>
+</div>
+
+<section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="stat-card"><div class="text-xs text-slate-500">접수</div><div class="text-3xl font-bold text-rose-600" id="s-received">0</div></div>
+    <div class="stat-card"><div class="text-xs text-slate-500">조사 중</div><div class="text-3xl font-bold text-amber-600" id="s-investigating">0</div></div>
+    <div class="stat-card"><div class="text-xs text-slate-500">처분 완료</div><div class="text-3xl font-bold text-emerald-600" id="s-resolved">0</div></div>
+    <div class="stat-card"><div class="text-xs text-slate-500">종결</div><div class="text-3xl font-bold text-slate-600" id="s-dismissed">0</div></div>
+</section>
+
+<section class="stat-card">
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">사건번호</th>
+                <th class="py-2">사업장</th>
+                <th class="py-2">신고자</th>
+                <th class="py-2 text-right">위험점수</th>
+                <th class="py-2 text-right">추정액</th>
+                <th class="py-2">상태</th>
+                <th class="py-2">접수일</th>
+                <th class="py-2 text-right">액션</th>
+            </tr>
+        </thead>
+        <tbody id="case-rows"></tbody>
+    </table>
+</section>
+
+<!-- 케이스 상세 모달 -->
+<div id="detail" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-2xl w-full max-h-[88vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-start mb-3">
+            <h2 class="text-lg font-bold" id="d-title">사건 상세</h2>
+            <button onclick="closeDetail()" class="text-slate-500">✕</button>
+        </div>
+        <div id="d-body"></div>
+        <div class="border-t mt-4 pt-3">
+            <div class="text-xs text-slate-500 mb-1">처리 액션 (감독관용)</div>
+            <div class="flex gap-2 flex-wrap" id="d-actions"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 신고 접수 모달 -->
+<div id="modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-start mb-3">
+            <h2 class="text-lg font-bold">임금체불 신고 + 증빙 제출</h2>
+            <button onclick="closeModal()" class="text-slate-500 text-xl">×</button>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 text-[11px] text-slate-600 mb-3">
+            본 시스템은 행정 처분을 하지 않으며, 신고는 <b>본인+감독관만 열람</b>됩니다.
+            제출 후 자동 생성된 진정서를 출력해 1350·고용노동부에 직접 제출하세요.
+        </div>
+        <form id="case-form" enctype="multipart/form-data" class="space-y-3">
+            <div class="flex items-center gap-3 text-sm">
+                <label class="flex items-center gap-1"><input type="radio" name="anon" value="false" checked onchange="toggleAnon(false)" /> 실명</label>
+                <label class="flex items-center gap-1"><input type="radio" name="anon" value="true" onchange="toggleAnon(true)" /> 익명 (이름은 표기 안 됨)</label>
+            </div>
+            <div><label class="text-xs text-slate-500">신고자 이름 <span id="name-req" class="text-rose-600">*</span></label><input name="reporter_name" id="f-name" class="input w-full" /></div>
+            <div><label class="text-xs text-slate-500">연락처 (이메일·전화) *</label><input name="reporter_contact" id="f-contact" class="input w-full" placeholder="010-... 또는 email@…" /></div>
+            <div class="border-t pt-3">
+                <div class="text-xs font-semibold text-slate-700 mb-2">사업장 식별</div>
+                <div><label class="text-xs text-slate-500">사업장명 *</label><input name="company" id="f-company" class="input w-full" /></div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div><label class="text-xs text-slate-500">사업자번호 (선택)</label><input name="company_bno" id="f-bno" class="input w-full font-mono" maxlength="10" /></div>
+                    <div><label class="text-xs text-slate-500">전화번호 (선택)</label><input name="company_tel" id="f-tel" class="input w-full" /></div>
+                </div>
+                <div class="mt-2"><label class="text-xs text-slate-500">사업장 주소 (선택)</label><input name="company_addr" id="f-addr" class="input w-full" /></div>
+            </div>
+            <div class="border-t pt-3">
+                <div class="text-xs font-semibold text-slate-700 mb-2">사건 정보</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs text-slate-500">체불 기간</label><input name="incident_period" id="f-period" class="input w-full" placeholder="예: 2026-01 ~ 04" /></div>
+                    <div><label class="text-xs text-slate-500">추정 체불액 (원)</label><input name="amount_estimated" id="f-amount" type="number" class="input w-full" value="0" /></div>
+                </div>
+                <div class="mt-2"><label class="text-xs text-slate-500">상세 사유</label><textarea name="description" id="f-desc" rows="3" class="input w-full"></textarea></div>
+            </div>
+            <div class="border-t pt-3">
+                <div class="text-xs font-semibold text-slate-700 mb-1">증빙 첨부 (사진·PDF, 8MB/파일)</div>
+                <div class="text-[11px] text-slate-500 mb-2">예: 임금명세서, 통장 입금 내역, 근로계약서, 사업주와의 메시지·문자, 출퇴근 기록</div>
+                <input type="file" name="files" id="f-files" multiple accept=".jpg,.jpeg,.png,.pdf,.heic,.webp,.gif" class="text-sm" />
+            </div>
+            <label class="flex items-start gap-2 text-xs text-slate-700 border-t pt-3">
+                <input type="checkbox" name="consent_personal" id="f-consent" class="mt-0.5" />
+                <span>개인정보(연락처·증빙) 수집·이용에 동의합니다. 본 정보는 공식 행정처리에 사용되지 않으며, 본인과 시스템 감독관만 열람합니다. 진정서 양식은 사용자가 직접 1350/고용노동부에 제출해야 합니다.</span>
+            </label>
+            <button type="button" onclick="submitCase()" class="btn-danger w-full py-2.5">접수 + 자동 위험·신뢰도 산출</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const STATUS_LABEL = { received: '접수', investigating: '조사 중', resolved: '처분 완료', dismissed: '종결' };
+const STATUS_COLOR = {
+    received: 'bg-rose-100 text-rose-700',
+    investigating: 'bg-amber-100 text-amber-700',
+    resolved: 'bg-emerald-100 text-emerald-700',
+    dismissed: 'bg-slate-100 text-slate-700',
+};
+const ALLOWED = {
+    received: [{to:'investigating',label:'조사 시작'}, {to:'dismissed',label:'반려'}],
+    investigating: [{to:'resolved',label:'처분 완료'}, {to:'dismissed',label:'종결'}],
+    resolved: [], dismissed: [],
+};
+
+async function load() {
+    const status = document.getElementById('filter-status').value;
+    const url = status ? `/api/cases?status=${status}` : '/api/cases';
+    const cases = await fetch(url).then(r => r.json());
+    const summary = await fetch('/api/cases/_stats/summary').then(r => r.json());
+    document.getElementById('s-received').textContent = summary.by_status.received || 0;
+    document.getElementById('s-investigating').textContent = summary.by_status.investigating || 0;
+    document.getElementById('s-resolved').textContent = summary.by_status.resolved || 0;
+    document.getElementById('s-dismissed').textContent = summary.by_status.dismissed || 0;
+
+    document.getElementById('case-rows').innerHTML = cases.map(c => `
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openDetail('${c.case_no}')">
+            <td class="py-2 font-mono text-xs">${c.case_no}</td>
+            <td class="py-2 font-medium">${c.company || '-'}</td>
+            <td class="py-2">${c.reporter_name || '-'}</td>
+            <td class="py-2 text-right">${c.risk_score || 0}</td>
+            <td class="py-2 text-right">${fmtKRWFull(c.amount_estimated || 0)}</td>
+            <td class="py-2"><span class="px-2 py-0.5 rounded text-xs ${STATUS_COLOR[c.status]}">${STATUS_LABEL[c.status]}</span></td>
+            <td class="py-2 text-xs">${(c.created_at || '').slice(0, 16).replace('T',' ')}</td>
+            <td class="py-2 text-right">
+                <a class="text-xs text-blue-600 underline" target="_blank"
+                   onclick="event.stopPropagation()" href="/api/report/${c.case_no}/html">HTML</a>
+                <a class="text-xs text-blue-600 underline ml-1" target="_blank"
+                   onclick="event.stopPropagation()" href="/api/report/${c.case_no}/pdf">PDF</a>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="8" class="py-6 text-center text-slate-400">신고 사건이 없습니다</td></tr>';
+}
+
+function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+function closeDetail() { document.getElementById('detail').classList.add('hidden'); }
+
+// 체불액 계산기에서 자동 채우기
+(function prefillFromWage() {
+    if (!new URLSearchParams(location.search).get('prefill')) return;
+    const desc = sessionStorage.getItem('WageGuard.wage_desc');
+    const amt = sessionStorage.getItem('WageGuard.wage_amount');
+    if (desc || amt) {
+        setTimeout(() => {
+            openModal();
+            if (desc) document.getElementById('f-desc').value = desc;
+            if (amt) document.getElementById('f-amount').value = amt;
+            sessionStorage.removeItem('WageGuard.wage_desc');
+            sessionStorage.removeItem('WageGuard.wage_amount');
+        }, 100);
+    }
+})();
+
+function toggleAnon(isAnon) {
+    document.getElementById('name-req').style.display = isAnon ? 'none' : 'inline';
+    document.getElementById('f-name').required = !isAnon;
+}
+
+async function submitCase() {
+    const form = document.getElementById('case-form');
+    const fd = new FormData(form);
+    // checkbox to "true"/"false"
+    fd.set('consent_personal', document.getElementById('f-consent').checked ? 'true' : 'false');
+    const anon = (document.querySelector('input[name=anon]:checked')?.value === 'true');
+    fd.set('is_anonymous', anon ? 'true' : 'false');
+
+    const company = (document.getElementById('f-company').value || '').trim();
+    const contact = (document.getElementById('f-contact').value || '').trim();
+    const name = (document.getElementById('f-name').value || '').trim();
+    if (!company || !contact || (!anon && !name)) { alert('연락처·사업장명 필수 (실명일 때 이름 필수)'); return; }
+    if (!document.getElementById('f-consent').checked) { alert('개인정보 수집·이용 동의 필요'); return; }
+    if (anon) fd.set('reporter_name', '');
+
+    const res = await fetch('/api/cases', { method: 'POST', body: fd });
+    if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        alert('접수 실패: ' + (e.detail || res.status));
+        return;
+    }
+    const r = await res.json();
+    closeModal();
+    alert(`접수 완료 — ${r.case_no}\n위험점수 ${r.risk_score} · 신뢰도 ${r.trust?.trust_score} · 증빙 ${r.files_saved}건`);
+    form.reset();
+    load();
+}
+
+async function openDetail(caseNo) {
+    const d = await fetch(`/api/cases/${caseNo}`).then(r => r.json());
+    const files = await fetch(`/api/cases/${caseNo}/files`).then(r => r.json()).catch(() => []);
+    document.getElementById('d-title').textContent = `${d.case.case_no} · ${d.case.company}`;
+    const reporter = d.case.is_anonymous ? `${d.case.reporter_name} (익명)` : `${d.case.reporter_name} (${d.case.reporter_contact})`;
+    document.getElementById('d-body').innerHTML = `
+        <div class="grid grid-cols-2 gap-3 text-sm">
+            <div><div class="text-xs text-slate-500">신고자</div>${reporter}</div>
+            <div><div class="text-xs text-slate-500">상태</div><span class="px-2 py-0.5 rounded text-xs ${STATUS_COLOR[d.case.status]}">${STATUS_LABEL[d.case.status]}</span></div>
+            <div><div class="text-xs text-slate-500">위험점수</div><span class="text-2xl font-bold">${d.case.risk_score}</span></div>
+            <div><div class="text-xs text-slate-500">추정액</div>${fmtKRWFull(d.case.amount_estimated || 0)}</div>
+            <div><div class="text-xs text-slate-500">사업자번호</div><span class="font-mono">${d.case.company_bno || '-'}</span></div>
+            <div><div class="text-xs text-slate-500">전화</div>${d.case.company_tel || '-'}</div>
+            <div class="col-span-2"><div class="text-xs text-slate-500">사업장 주소</div>${d.case.company_addr || '-'}</div>
+            <div class="col-span-2"><div class="text-xs text-slate-500">체불 기간</div>${d.case.incident_period || '-'}</div>
+            <div class="col-span-2"><div class="text-xs text-slate-500">상세 사유</div><div class="bg-slate-50 p-2 rounded text-xs whitespace-pre-line">${d.case.description || '-'}</div></div>
+            <div class="col-span-2">
+                <div class="text-xs text-slate-500 mb-1">제출 증빙 (${files.length}건)</div>
+                ${files.length ? `<ul class="text-xs space-y-1">${files.map(f => `
+                    <li class="flex justify-between border rounded p-1.5">
+                        <a href="/api/cases/${caseNo}/files/${f.id}" target="_blank" class="text-blue-600 hover:underline">${f.filename}</a>
+                        <span class="text-slate-500 mono">${(f.bytes/1024).toFixed(0)}KB</span>
+                    </li>`).join('')}</ul>` : '<div class="text-xs text-slate-400">없음</div>'}
+            </div>
+        </div>
+        <div class="border-t mt-4 pt-3">
+            <div class="text-xs text-slate-500 mb-2">진행 이벤트</div>
+            <ol class="text-sm space-y-1">
+                ${d.events.map(e => `
+                    <li class="border-l-2 border-slate-300 pl-2">
+                        <span class="text-xs text-slate-500">${(e.created_at||'').slice(11,16)}</span>
+                        <span class="font-medium ml-1">${e.action}</span>
+                        <span class="text-slate-500"> · ${e.actor}</span>
+                        ${e.note ? `<div class="text-xs text-slate-600 ml-1">${e.note}</div>` : ''}
+                    </li>
+                `).join('')}
+            </ol>
+        </div>`;
+    const acts = ALLOWED[d.case.status] || [];
+    document.getElementById('d-actions').innerHTML = acts.map(a => `
+        <button onclick="transition('${d.case.case_no}', '${a.to}')"
+                class="px-3 py-1 text-sm rounded bg-slate-900 text-white">${a.label}</button>
+    `).join('') + `
+        <a href="/api/report/${d.case.case_no}/html" target="_blank"
+           class="px-3 py-1 text-sm rounded border">진정서 HTML / 인쇄</a>
+        <a href="/api/report/${d.case.case_no}/pdf" target="_blank"
+           class="px-3 py-1 text-sm rounded border">진정서 PDF 다운로드</a>
+    `;
+    document.getElementById('detail').classList.remove('hidden');
+}
+
+async function transition(caseNo, to) {
+    const note = prompt('처리 메모 (선택)');
+    await fetch(`/api/cases/${caseNo}/transition`, {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify({to, actor: '근로감독관', note: note || null}),
+    });
+    closeDetail();
+    load();
+}
+
+load();
+</script>
+{% endblock %}

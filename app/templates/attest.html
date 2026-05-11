@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}정직 사업주 자가 인증{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">🏅 정직 사업주 인증</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        사업주가 매월 임금 지급 사실을 직접 등록하면 시스템이 일관성을 검증해
+        <b>6개월 누적 통과 시 정직 인증 마크</b>를 발급합니다. 채용공고에 노출 가능 — 우수 인력 확보 경쟁력.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card">
+        <h2 class="font-semibold mb-3">월별 자가신고</h2>
+        <form id="att-form" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs text-slate-500">사업장명 *</label><input id="a-company" class="input w-full" required /></div>
+                <div><label class="text-xs text-slate-500">사업자번호</label><input id="a-bno" class="input w-full font-mono" maxlength="10" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs text-slate-500">대표자</label><input id="a-rep" class="input w-full" /></div>
+                <div><label class="text-xs text-slate-500">담당 연락처 *</label><input id="a-contact" class="input w-full" required /></div>
+            </div>
+            <div class="border-t pt-3"><div class="text-sm font-semibold mb-2">월간 데이터</div></div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs text-slate-500">기간 (YYYY-MM)</label><input id="a-period" class="input w-full" placeholder="2026-04" /></div>
+                <div><label class="text-xs text-slate-500">임금 지급일</label><input id="a-paydate" type="date" class="input w-full" /></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <div><label class="text-xs text-slate-500">직원 수</label><input id="a-emp" type="number" class="input w-full" /></div>
+                <div><label class="text-xs text-slate-500">4대보험 가입자</label><input id="a-ins" type="number" class="input w-full" /></div>
+                <div><label class="text-xs text-slate-500">평균 근로시간/주</label><input id="a-hours" type="number" step="0.5" class="input w-full" /></div>
+            </div>
+            <div><label class="text-xs text-slate-500">월 지급 총액 (원)</label><input id="a-paid" type="number" class="input w-full" /></div>
+            <div class="flex gap-2 text-sm">
+                <label><input type="checkbox" id="a-pay" checked /> 임금명세서 교부</label>
+            </div>
+            <label class="flex items-start gap-2 text-xs">
+                <input type="checkbox" id="a-consent" />
+                <span>본 자가신고 내용은 사실이며, 시스템 내에서 일관성 검증 목적으로 사용됨에 동의합니다. 허위 신고 시 인증 취소 + 시스템 신호 격상.</span>
+            </label>
+            <button type="button" onclick="submitAtt()" class="btn-primary w-full">자가신고 제출</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 class="font-semibold mb-2">인증 상태 조회</h2>
+        <div class="flex gap-2 mb-3">
+            <input id="q-name" class="input flex-1" placeholder="사업장명" />
+            <button onclick="loadCert()" class="btn-ghost">조회</button>
+        </div>
+        <div id="cert-result" class="text-sm">
+            <div class="text-slate-400">사업장명을 입력하세요.</div>
+        </div>
+    </div>
+</section>
+
+<section class="card mt-6">
+    <h2 class="font-semibold mb-3">정직 사업주 명단 (자가신고 누적순)</h2>
+    <table class="t">
+        <thead><tr>
+            <th>사업장</th><th>인증 상태</th>
+            <th class="text-right">신고 월수</th><th class="text-right">통과 월수</th><th>최근</th>
+        </tr></thead>
+        <tbody id="cert-list"><tr><td colspan="5" class="py-4 text-center text-slate-400">로드 중…</td></tr></tbody>
+    </table>
+</section>
+
+<script>
+async function submitAtt() {
+    if (!document.getElementById('a-consent').checked) { alert('동의 필요'); return; }
+    const inp = {
+        company: document.getElementById('a-company').value.trim(),
+        bzowr_rgst_no: document.getElementById('a-bno').value.trim() || null,
+        representative: document.getElementById('a-rep').value.trim() || null,
+        contact: document.getElementById('a-contact').value.trim(),
+        period_ym: document.getElementById('a-period').value.trim(),
+        payment_date: document.getElementById('a-paydate').value,
+        employee_count: parseInt(document.getElementById('a-emp').value || '0'),
+        insured_count: parseInt(document.getElementById('a-ins').value || '0'),
+        avg_hours: parseFloat(document.getElementById('a-hours').value || '0'),
+        paid_total: parseInt(document.getElementById('a-paid').value || '0'),
+        payslip_issued: document.getElementById('a-pay').checked,
+        consent: true,
+    };
+    if (!inp.company || !inp.contact || !inp.period_ym || !inp.payment_date) {
+        alert('필수 항목 (사업장명·연락처·기간·지급일)');
+        return;
+    }
+    const r = await fetch('/api/attest/submit', {
+        method: 'POST', headers: {'content-type':'application/json'},
+        body: JSON.stringify(inp),
+    });
+    if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        alert('실패: ' + (e.detail || r.status)); return;
+    }
+    const d = await r.json();
+    alert(`자가신고 완료\n인증: ${d.certificate.label}\n월수: ${d.certificate.months_attested} (통과 ${d.certificate.ok_months})`);
+    document.getElementById('q-name').value = inp.company;
+    loadCert();
+    loadList();
+    document.getElementById('att-form').reset();
+}
+
+async function loadCert() {
+    const q = document.getElementById('q-name').value.trim();
+    if (!q) return;
+    const r = await fetch('/api/attest/certificate/' + encodeURIComponent(q)).then(r => r.json());
+    const sevColor = {
+        verified_gold: 'bg-yellow-50 border-yellow-300 text-yellow-900',
+        verified_silver: 'bg-slate-50 border-slate-300 text-slate-700',
+        in_progress: 'bg-amber-50 border-amber-300 text-amber-700',
+        flagged: 'bg-rose-50 border-rose-300 text-rose-700',
+        none: 'bg-slate-50 border-slate-200 text-slate-500',
+    }[r.status] || '';
+    let html = `
+        <div class="border rounded-xl p-4 ${sevColor}">
+            <div class="text-sm font-semibold">${r.label}</div>
+            <div class="text-xs mt-1">${r.company} · 신고 ${r.months_attested}개월 · 통과 ${r.ok_months || 0}</div>
+        </div>`;
+    if (r.issues && r.issues.length) {
+        html += '<div class="mt-3"><div class="text-xs font-semibold mb-1">검증 issue</div><ul class="text-xs space-y-0.5">';
+        for (const i of r.issues) {
+            html += `<li>• ${i.period}: ${i.issue}</li>`;
+        }
+        html += '</ul></div>';
+    }
+    if (r.history && r.history.length) {
+        html += '<div class="mt-3"><div class="text-xs font-semibold mb-1">최근 신고 이력</div><table class="w-full text-xs"><thead><tr><th>기간</th><th>지급일</th><th class="text-right">총액</th><th class="text-right">직원/가입</th><th>명세</th></tr></thead><tbody>';
+        for (const h of r.history) {
+            html += `<tr><td>${h.period_ym}</td><td>${h.payment_date}</td><td class="text-right">${(h.paid_total||0).toLocaleString()}</td><td class="text-right">${h.employee_count}/${h.insured_count}</td><td>${h.payslip_issued?'✓':'✗'}</td></tr>`;
+        }
+        html += '</tbody></table></div>';
+    }
+    document.getElementById('cert-result').innerHTML = html;
+}
+
+async function loadList() {
+    const list = await fetch('/api/attest/list').then(r => r.json());
+    document.getElementById('cert-list').innerHTML = list.length ? list.map(x => {
+        const colors = {
+            verified_gold: 'chip chip-low',
+            verified_silver: 'chip chip-flat',
+            in_progress: 'chip chip-med',
+            flagged: 'chip chip-high',
+        };
+        return `<tr>
+            <td>${x.company}</td>
+            <td><span class="${colors[x.status]||'chip chip-flat'}">${x.label}</span></td>
+            <td class="text-right">${x.months_attested}</td>
+            <td class="text-right">${x.ok_months}</td>
+            <td class="text-xs">${(x.last_at||'').slice(0,10)}</td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="5" class="py-4 text-center text-slate-400">아직 자가신고 없음</td></tr>';
+}
+
+loadList();
+</script>
+{% endblock %}

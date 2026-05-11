@@ -1,0 +1,371 @@
+﻿{% extends "base.html" %}
+{% block title %}라이브 검증{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">🔴 LIVE — 7개 API·AI 실시간 검증 (SSE)</h1>
+            <span class="chip chip-high" id="live-pulse">●</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            임의의 회사명 입력 → <b>7개 외부 API + AI 종합</b>을 SSE 실시간 스트리밍으로 표시.
+            체불명단 · 국세청 · 네이버 · Google · <b>NPS 이탈률</b> · <b>DART 재무위험(선행지표)</b> · AI 의심도.
+        </p>
+        <div class="mt-2 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">
+            <b>⚠ 커버리지 한계 (투명 공개):</b>
+            이 시스템은 NPS 가입 사업장·공시 법인·공식 신고 체불 건에 한해 개별 데이터 탐지가 가능합니다.
+            <b>5인 미만 소기업·개인사업장은 구조적 사각지대</b>이며, 낮은 AI 점수가 "안전"을 의미하지 않습니다.
+            미탐지 사업장에는 <b>업종×지역 기저율(Base Rate)</b> 방식의 집계 위험도를 병행 제시합니다.
+        </div>
+    </header>
+
+    <!-- 입력 -->
+    <div class="card">
+        <form onsubmit="startVerify(event)" class="flex gap-2 flex-wrap">
+            <input id="v-input" class="input flex-1 min-w-[200px]" placeholder="회사명 입력 (예: 삼성전자, 효성컴퓨터학원)" required />
+            <button class="btn-primary">▶ 라이브 검증 시작</button>
+            <button type="button" onclick="setQ('삼성전자')" class="btn-ghost btn-sm">삼성전자 (정상)</button>
+            <button type="button" onclick="setQ('센트롤')" class="btn-ghost btn-sm">센트롤 (고위험)</button>
+            <button type="button" onclick="setQ('타이탄플랫폼')" class="btn-ghost btn-sm">타이탄플랫폼 (체불+NPS)</button>
+            <button type="button" onclick="setQ('기본로지스틱')" class="btn-ghost btn-sm">기본로지스틱 (위험)</button>
+        </form>
+        <div class="text-xs text-slate-500 mt-2">
+            호출 API: 체불사업주 명단(DB) · 국세청 사업자상태(15081808) · 네이버 검색 3채널 · Google Places · NPS 국민연금 이탈률 · DART 재무위험 · WageGuard AI 종합
+        </div>
+    </div>
+
+    <!-- 실시간 단계 -->
+    <div class="card border-slate-300">
+        <h2 class="text-lg font-bold mb-3">📡 실시간 호출 단계</h2>
+        <div id="steps" class="space-y-2 text-sm text-slate-500">대기 중…</div>
+    </div>
+
+    <!-- 종합 결과 -->
+    <div id="final-result" class="hidden"></div>
+
+</section>
+
+<script>
+// ── 상수 ─────────────────────────────────────────────
+const STEP_META = {
+    1: { src: '체불DB',   color: 'rose',   icon: '🗂' },
+    2: { src: '국세청',   color: 'slate',  icon: '🏛' },
+    3: { src: '네이버',   color: 'blue',   icon: '🔍' },
+    4: { src: 'Google',   color: 'green',  icon: '📍' },
+    5: { src: 'NPS',      color: 'indigo', icon: '📈' },
+    6: { src: 'DART',     color: 'violet', icon: '📊' },
+    7: { src: 'AI 종합',  color: 'amber',  icon: '🧠' },
+};
+
+function setQ(s) { document.getElementById('v-input').value = s; }
+
+// URL ?q= 자동 실행
+(function() {
+    const q = new URLSearchParams(location.search).get('q');
+    if (q) {
+        document.getElementById('v-input').value = q;
+        setTimeout(() => startVerify({ preventDefault: () => {} }), 300);
+    }
+})();
+
+let _es = null;
+
+function startVerify(e) {
+    e.preventDefault();
+    const company = document.getElementById('v-input').value.trim();
+    if (!company) return;
+
+    if (_es) _es.close();
+    document.getElementById('steps').innerHTML = '<div class="text-xs text-slate-400 py-2">스트리밍 연결 중…</div>';
+    document.getElementById('final-result').classList.add('hidden');
+    document.getElementById('final-result').innerHTML = '';
+
+    const steps = {};
+    _es = new EventSource('/api/verify/stream?company=' + encodeURIComponent(company));
+
+    _es.addEventListener('step', (ev) => {
+        const d = JSON.parse(ev.data);
+        steps[d.n] = d;
+        renderSteps(steps);
+    });
+
+    _es.addEventListener('complete', (ev) => {
+        const d = JSON.parse(ev.data);
+        renderFinal(d, steps);
+        _es.close();
+    });
+
+    _es.addEventListener('error', () => {
+        if (_es && _es.readyState === EventSource.CLOSED) return;
+    });
+}
+
+// ── 위험 수준 판정 ────────────────────────────────────
+function getRiskLevel(n, r) {
+    if (n === 1) return r.matched ? 'high' : 'ok';
+    if (n === 2) return 'info';
+    if (n === 3) { if (!r.ok) return 'info'; return r.total_risk_hits > 0 ? 'high' : 'ok'; }
+    if (n === 4) return 'info';
+    if (n === 5) {
+        if (!r.ok || !r.matched) return 'info';
+        return r.overall_severity === 'high' ? 'high' : r.overall_severity === 'medium' ? 'med' : 'ok';
+    }
+    if (n === 6) {
+        if (!r.ok) return 'info';
+        const s = r.risk_score ?? 0;
+        return s >= 60 ? 'high' : s >= 30 ? 'med' : 'ok';
+    }
+    if (n === 7) return r.score >= 70 ? 'high' : r.score >= 40 ? 'med' : 'ok';
+    return 'info';
+}
+
+function riskBadge(level) {
+    if (level === 'high') return '<span class="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">⚠ 위험</span>';
+    if (level === 'med')  return '<span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">주의</span>';
+    if (level === 'ok')   return '<span class="text-[10px] font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">정상</span>';
+    return '<span class="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">조회됨</span>';
+}
+
+// ── 단계 목록 렌더 ────────────────────────────────────
+function renderSteps(steps) {
+    const vals = Object.values(steps).sort((a, b) => a.n - b.n);
+    const total = 7;
+    const done = vals.filter(s => s.status === 'done').length;
+    const pct = Math.round((done / total) * 100);
+    const allDone = done === total;
+
+    const progressHtml = `
+        <div class="mb-4">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                <span class="font-medium">${done} / ${total} 단계 완료</span>
+                <span class="${allDone ? 'text-emerald-600 font-semibold' : 'text-amber-600'}">${allDone ? '✓ 전체 검증 완료' : '실시간 스트리밍 중…'}</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500 ${allDone ? 'bg-emerald-500' : 'bg-indigo-500'}"
+                     style="width:${pct}%"></div>
+            </div>
+        </div>`;
+
+    const stepsHtml = vals.map(s => {
+        const meta = STEP_META[s.n] || { src: '', color: 'slate', icon: '·' };
+        const isDone = s.status === 'done';
+        const level = isDone && s.result ? getRiskLevel(s.n, s.result) : null;
+        const detail = isDone && s.result ? renderResult(s.n, s.result) : '';
+
+        // border + bg colors based on risk
+        let cardCls = 'border-slate-200';
+        if (!isDone)        cardCls = 'border-amber-200 bg-amber-50/40';
+        else if (level === 'high') cardCls = 'border-rose-300 bg-rose-50/40';
+        else if (level === 'med')  cardCls = 'border-amber-200 bg-amber-50/30';
+        else if (level === 'ok')   cardCls = 'border-emerald-200';
+
+        const iconHtml = isDone
+            ? `<div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${level === 'high' ? 'bg-rose-100' : level === 'med' ? 'bg-amber-100' : 'bg-emerald-100'}">
+                   <span class="text-sm">${level === 'high' ? '⚠' : '✓'}</span>
+               </div>`
+            : `<div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                   <span class="text-sm animate-spin inline-block">⟳</span>
+               </div>`;
+
+        return `
+        <div class="border ${cardCls} rounded-xl overflow-hidden transition-all duration-300">
+            <div class="flex items-center gap-2.5 px-3 py-2.5">
+                ${iconHtml}
+                <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide
+                                 ${isDone ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-700'}">${meta.icon} ${meta.src}</span>
+                    <span class="text-sm font-semibold text-slate-800">${s.label}</span>
+                </div>
+                <div class="flex-shrink-0 ml-auto pl-2">
+                    ${isDone ? riskBadge(level) : '<span class="text-xs text-amber-600">진행 중…</span>'}
+                </div>
+            </div>
+            ${detail ? `<div class="border-t border-slate-100 px-3 pb-3 pt-1">${detail}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    document.getElementById('steps').innerHTML = progressHtml + stepsHtml;
+}
+
+// ── 개별 결과 렌더 ────────────────────────────────────
+function renderResult(n, r) {
+    if (n === 1) {
+        if (!r.matched) return '<p class="text-xs text-emerald-700 mt-1">체불 명단 매칭 없음</p>';
+        let html = `<p class="text-xs text-rose-700 font-bold mt-1">${r.matched}건 매칭 — 체불 이력 발견</p>`;
+        html += '<table class="t text-xs mt-2"><thead><tr><th>회사</th><th>연도</th><th class="text-right">금액(원)</th><th>지역</th></tr></thead><tbody>';
+        r.matches.forEach(m => {
+            html += `<tr><td>${m.company}</td><td>${m.year}</td><td class="text-right mono">${(m.amount||0).toLocaleString()}</td><td>${m.region||'-'}</td></tr>`;
+        });
+        return html + '</tbody></table>';
+    }
+    if (n === 2) return `<p class="text-xs text-slate-600 mt-1">📍 ${r.endpoint} (키 ${r.has_key ? '발급됨' : '미설정'}) · ${r.indirect_signal}</p>`;
+    if (n === 3) {
+        if (!r.ok) return `<p class="text-xs text-slate-500 mt-1">${r.reason || ''}</p>`;
+        let html = `<p class="text-xs font-bold mt-1 ${r.total_risk_hits > 0 ? 'text-rose-700' : 'text-emerald-700'}">위험 키워드 ${r.total_risk_hits}건</p>`;
+        html += '<div class="flex gap-3 mt-1 flex-wrap">';
+        Object.entries(r.channels).forEach(([ch, v]) => {
+            const lbl = {news:'뉴스', blog:'블로그', cafearticle:'카페'}[ch] || ch;
+            const rh = v.risk_hits ?? 0;
+            html += `<span class="text-[11px] px-2 py-0.5 rounded-full ${rh > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}">${lbl} ${v.total??0}건 · 위험 ${rh}</span>`;
+        });
+        return html + '</div>';
+    }
+    if (n === 4) {
+        if (!r.ok) return `<p class="text-xs text-slate-500 mt-1">${r.reason || ''}</p>`;
+        if (!r.matched) return '<p class="text-xs text-slate-500 mt-1">매칭된 장소 없음</p>';
+        let html = `<p class="text-xs text-slate-600 mt-1">${r.matched}개 장소 매칭</p><div class="flex gap-2 mt-1 flex-wrap">`;
+        r.top.forEach(p => {
+            html += `<span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">⭐ ${p.rating??'-'} · ${p.review_count??0}리뷰</span>`;
+        });
+        return html + '</div>';
+    }
+    if (n === 5) {
+        if (!r.ok) return `<p class="text-xs text-slate-500 mt-1">${r.reason || r.note || 'NPS 데이터 없음'}</p>`;
+        if (!r.matched) return '<p class="text-xs text-slate-500 mt-1">NPS 데이터 매칭 없음</p>';
+        const sev = r.overall_severity;
+        const sc = sev === 'high' ? 'rose' : sev === 'medium' ? 'amber' : 'emerald';
+        let html = `<p class="text-xs font-bold text-${sc}-700 mt-1">NPS ${r.matched}개 사업장 · ${sev === 'high' ? '⚠ 이탈 고위험' : sev === 'medium' ? '이탈 주의' : '정상'}</p>`;
+        if (r.summary?.length) {
+            const s = r.summary[0];
+            if (s.loss_pct || s.churn_pct) {
+                html += `<p class="text-xs text-slate-600 mt-0.5">가입자 ${s.jnngpCnt}명 · 월상실 ${s.lost}명 (${s.loss_pct??s.churn_pct}%)${s.avg_pay ? ' · 평균보수 '+(s.avg_pay/10000).toFixed(0)+'만원' : ''}</p>`;
+            }
+        }
+        if (r.signals?.length) {
+            html += `<p class="text-xs text-rose-700 mt-0.5">${r.signals.flatMap(s => s.warnings.map(w => w.sig)).join(' · ')}</p>`;
+        }
+        return html;
+    }
+    if (n === 6) {
+        if (!r.ok) {
+            const noListed = (r.reason||'').includes('미발견')||(r.reason||'').includes('미수록')||(r.reason||'').includes('없음');
+            return `<div class="mt-1">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">
+                    ${noListed ? '📋 DART 미수록' : '⚠'} ${r.reason || 'DART 미조회'}
+                </span>
+                ${noListed ? '<p class="text-[11px] text-slate-400 mt-0.5">DART는 상장·공시법인만 커버 — 영세·개인사업장은 NPS·체불명단으로 탐지</p>' : ''}
+            </div>`;
+        }
+        const ds = r.risk_score ?? 0;
+        const dc = ds >= 60 ? 'rose' : ds >= 30 ? 'amber' : 'emerald';
+        return `<div class="mt-1 flex items-center gap-3">
+            <div class="text-3xl font-extrabold mono text-${dc}-700 leading-none">${ds}</div>
+            <div class="text-xs">
+                <div class="font-bold text-${dc}-700">${ds >= 60 ? '⚠ 재무위험 고위험' : ds >= 30 ? '재무 주의' : '정상 범위'}</div>
+                <div class="text-slate-500">${(r.signals||[]).map(s=>s.label).join(' · ')||'위험 신호 없음'}</div>
+            </div>
+        </div>`;
+    }
+    if (n === 7) {
+        const color = r.score >= 70 ? 'rose' : r.score >= 40 ? 'amber' : 'emerald';
+        return `<div class="mt-1 flex items-center gap-3">
+            <div class="text-4xl font-extrabold mono text-${color}-700 leading-none">${r.score}</div>
+            <div>
+                <div class="text-sm font-bold text-${color}-700">${r.decision}</div>
+                <div class="text-xs text-slate-500">${r.reasons.join(' · ')||'신호 없음'}</div>
+            </div>
+        </div>`;
+    }
+    return '';
+}
+
+// ── 최종 결과 ──────────────────────────────────────────
+function renderFinal(d, steps) {
+    const fr = document.getElementById('final-result');
+    fr.classList.remove('hidden');
+    const score = d.ai.score;
+    const color = score >= 70 ? 'rose' : score >= 40 ? 'amber' : 'emerald';
+    const label = score >= 70 ? '고위험' : score >= 40 ? '주의' : '정상';
+
+    // 7개 소스 신호 요약 그리드
+    const sigGrid = Object.values(steps).sort((a,b)=>a.n-b.n).map(s => {
+        const meta = STEP_META[s.n] || { src: '?', icon: '·' };
+        const level = s.result ? getRiskLevel(s.n, s.result) : 'info';
+        const dot = level === 'high' ? '🔴' : level === 'med' ? '🟡' : level === 'ok' ? '🟢' : '⚪';
+        return `<div class="flex flex-col items-center gap-1 text-center">
+            <span class="text-lg leading-none">${dot}</span>
+            <span class="text-[10px] text-slate-500 leading-tight">${meta.src}</span>
+        </div>`;
+    }).join('');
+
+    // 사각지대 감지: 체불DB·NPS·DART 세 소스 모두 신호 없고 점수 낮으면 경고
+    const noCheol = !steps[1]?.result?.matched;
+    const noNps   = !steps[5]?.result?.matched;
+    const noDart  = !steps[6]?.result?.ok;
+    const isBlindSpot = noCheol && noNps && noDart && score < 45;
+
+    const blindSpotBanner = isBlindSpot ? `
+        <div class="mt-4 rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
+            <div class="flex items-start gap-2">
+                <span class="text-xl leading-none mt-0.5">⚠</span>
+                <div>
+                    <div class="font-bold text-amber-800 text-sm mb-1">데이터 사각지대 — 낮은 점수 ≠ 안전</div>
+                    <p class="text-xs text-amber-800 mb-2">
+                        체불명단·NPS·DART <b>세 소스 모두 데이터 없음</b> → <b>영세·개인사업장 추정</b>.
+                        이 시스템은 공식 신고된 법인·NPS 가입 사업장 위주로 작동하며,
+                        실제 임금체불의 대다수를 차지하는 <b>5인 미만 소기업·개인사업장은 구조적 사각지대</b>입니다.
+                    </p>
+                    <div id="blind-base-rates" class="grid grid-cols-3 gap-2 text-xs">
+                        <div class="bg-amber-100 rounded-lg p-2 text-center">
+                            <div class="font-bold text-amber-900 text-base">건설업</div>
+                            <div class="text-amber-700">체불 기저율 5.0%</div>
+                        </div>
+                        <div class="bg-amber-100 rounded-lg p-2 text-center">
+                            <div class="font-bold text-amber-900 text-base">정보통신업</div>
+                            <div class="text-amber-700">체불 기저율 5.4%</div>
+                        </div>
+                        <div class="bg-amber-100 rounded-lg p-2 text-center">
+                            <div class="font-bold text-amber-900 text-base">제조업</div>
+                            <div class="text-amber-700">체불 기저율 4.2%</div>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-amber-600 mt-1">* 기저율 = WageGuard DB 실측 (체불명단 ÷ NPS 등록 사업장). NPS 미등록 소규모 사업장은 분모에서도 제외되어 실제 기저율은 이보다 높음.</p>
+                    <p class="text-[11px] text-amber-700 mt-2">
+                        → 업종이 확인되는 경우
+                        <a href="/triage" class="underline font-medium">점검 우선순위 페이지</a>의
+                        <b>업종별 기저율(Base Rate)</b>로 추정 위험도를 별도 산출하세요.
+                    </p>
+                </div>
+            </div>
+        </div>` : '';
+
+    fr.innerHTML = `
+        <div class="card border-2 border-${color}-300 bg-${color}-50 shadow-lg">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div class="text-xs font-semibold text-${color}-700 uppercase tracking-wider">🧠 AI 최종 종합 판정</div>
+                <div class="text-xs text-slate-500">${d.company}</div>
+            </div>
+            <div class="flex items-end gap-4 mb-4 flex-wrap">
+                <div class="text-7xl font-extrabold mono text-${color}-700 leading-none">${score}</div>
+                <div>
+                    <div class="text-2xl font-extrabold text-${color}-700">${d.ai.decision}</div>
+                    <div class="inline-flex items-center gap-1 mt-1 px-3 py-1 rounded-full text-sm font-bold
+                                ${color === 'rose' ? 'bg-rose-200 text-rose-800' : color === 'amber' ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800'}">
+                        ${label} 사업장
+                    </div>
+                    ${d.ai.base_rate_applied ? `
+                    <div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                        📊 ${d.ai.inferred_industry} 업종 기저율 적용
+                    </div>` : ''}
+                </div>
+            </div>
+            <div class="text-xs text-slate-600 mb-4">${d.ai.reasons.join(' · ')||'특이 신호 없음'}</div>
+            <div class="border-t border-${color}-200 pt-3">
+                <div class="text-[11px] text-slate-400 mb-2 font-medium uppercase tracking-wider">7개 소스 신호 요약</div>
+                <div class="grid grid-cols-7 gap-1">${sigGrid}</div>
+            </div>
+            <div class="mt-3 text-right">
+                <a href="/triage" class="text-xs text-${color}-700 hover:underline font-medium">전체 점검 우선순위 보기 →</a>
+            </div>
+        </div>
+        ${blindSpotBanner}`;
+}
+
+// pulse animation
+setInterval(() => {
+    const p = document.getElementById('live-pulse');
+    if (p) p.style.opacity = p.style.opacity === '0.3' ? '1' : '0.3';
+}, 700);
+</script>
+{% endblock %}

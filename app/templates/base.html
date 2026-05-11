@@ -1,0 +1,191 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}{{ app_name }}{% endblock %} · {{ app_name }}</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50:  '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#4f46e5',
+                            600: '#4338ca',
+                            700: '#3730a3',
+                            900: '#1e1b4b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script src="/static/format.js"></script>
+    <script src="/static/korea_map.js"></script>
+    <script>
+    // 기업명 부분 마스킹 — 확정 체불 여부와 무관하게 공개 화면에서 적용
+    function maskBiz(name) {
+        if (!name) return '—';
+        const preMatch = name.match(/^(\(주\)|\(유\)|\(합\)|주식회사\s+)/);
+        const sufMatch = name.match(/(\(주\)|\(유\)|\(합\)|주식회사)$/);
+        const pre = preMatch ? preMatch[0] : '';
+        const suf = (!preMatch && sufMatch) ? sufMatch[0] : '';
+        const core = name.slice(pre.length, name.length - suf.length);
+        if (core.length <= 2) return pre + core + suf;
+        const masked = core[0] + '○'.repeat(Math.max(1, core.length - 2)) + core[core.length - 1];
+        return pre + masked + suf;
+    }
+    </script>
+    <style>
+        html, body { font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+                    font-feature-settings: 'tnum'; letter-spacing: -0.01em; }
+        body { -webkit-font-smoothing: antialiased; }
+        h1, h2, h3 { letter-spacing: -0.025em; }
+
+        /* 카드 */
+        .card { @apply bg-white border border-slate-200 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]; }
+        .card-h { @apply hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-slate-300 transition; }
+        /* 하위 호환 */
+        .stat-card { @apply bg-white border border-slate-200 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]; }
+
+        /* 버튼 */
+        .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-1; }
+        .btn-primary { @apply btn bg-slate-900 text-white hover:bg-slate-800 focus:ring-slate-300; }
+        .btn-danger  { @apply btn bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-200; }
+        .btn-ghost   { @apply btn border border-slate-200 hover:bg-slate-50 focus:ring-slate-200; }
+        .btn-sm      { @apply px-2.5 py-1 text-xs; }
+
+        /* 입력 */
+        .input { @apply border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400; }
+
+        /* 네비 */
+        .navlink { @apply px-2.5 py-1.5 text-[13px] rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition; }
+        .navlink.active { @apply bg-slate-900 text-white hover:bg-slate-900 hover:text-white; }
+        .navgroup { @apply text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1.5; }
+
+        /* 스코어 칩 */
+        .chip { @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold; }
+        .chip-high { @apply bg-rose-100 text-rose-700; }
+        .chip-med  { @apply bg-amber-100 text-amber-700; }
+        .chip-low  { @apply bg-emerald-100 text-emerald-700; }
+        .chip-flat { @apply bg-slate-100 text-slate-600; }
+
+        /* 표 */
+        table.t { @apply w-full text-sm; }
+        table.t thead th { @apply text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left py-2; }
+        table.t tbody tr { @apply border-t border-slate-100; }
+        table.t tbody td { @apply py-2.5; }
+        table.t tbody tr:hover { @apply bg-slate-50/60; }
+
+        /* 코드/모노 */
+        .mono { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-6 pt-3.5 pb-1.5 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-baseline gap-2.5 flex-shrink-0">
+            <span class="text-[22px] font-extrabold tracking-tight">WageGuard</span>
+            <span class="text-[12px] text-slate-500 hidden md:inline">{{ app_tagline }}</span>
+        </a>
+        <form id="globalSearch" class="hidden md:flex flex-1 max-w-md mx-2" onsubmit="goSearch(event)">
+            <input type="text" id="gs-input" placeholder="사업장명 또는 사업자번호 검색…"
+                   class="input flex-1 rounded-r-none border-r-0 text-sm" />
+            <button type="submit" class="btn-primary rounded-l-none px-4">조회</button>
+        </form>
+        <div class="text-[11px] text-right text-slate-500 leading-tight flex-shrink-0">
+            <div>운영 주체 <span class="text-slate-900 font-semibold">{{ app_operator }}</span></div>
+            <div class="opacity-80">이용 대상 {{ app_users }}</div>
+        </div>
+    </div>
+    <script>
+    function goSearch(e) {
+        e.preventDefault();
+        const q = document.getElementById('gs-input').value.trim();
+        if (!q) return;
+        if (/^\d{10}$/.test(q)) {
+            location.href = '/business?bno=' + q;
+        } else {
+            location.href = '/company/' + encodeURIComponent(q);
+        }
+    }
+    </script>
+    <div class="max-w-7xl mx-auto px-6 pb-2.5">
+        <button class="md:hidden btn-ghost btn-sm w-full mb-2" onclick="document.getElementById('main-nav').classList.toggle('hidden')">☰ 메뉴 열기/닫기</button>
+        <nav id="main-nav" class="flex md:flex items-center gap-0.5 flex-wrap hidden md:flex">
+            <!-- 핵심 3개 -->
+            <a href="/triage"     class="navlink font-semibold {% if active=='triage' %}active{% endif %}">🎯 점검 우선순위</a>
+            <a href="/verify"     class="navlink font-semibold {% if active=='verify' %}active{% endif %}">🔴 LIVE 검증</a>
+            <a href="/disability" class="navlink font-semibold {% if active=='disability' %}active{% endif %}">♿ 장애인 보호</a>
+
+            <span class="text-slate-200 mx-1">|</span>
+
+            <a href="/ml"         class="navlink {% if active=='ml' %}active{% endif %}">AI 모델</a>
+            <a href="/evidence"   class="navlink {% if active=='evidence' %}active{% endif %}">임팩트</a>
+
+            <!-- 더보기 드롭다운 -->
+            <div class="relative" id="more-menu-wrap">
+                <button onclick="document.getElementById('more-dd').classList.toggle('hidden')"
+                        class="navlink flex items-center gap-1 {% if active in ['m6','m6_embed','dart','pension','insurance_cross','scenario','scalability','audit','demo','operator','judge','reports'] %}active{% endif %}">
+                    더보기 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="more-dd" class="hidden absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 min-w-[180px]">
+                    <div class="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">선행지표</div>
+                    <a href="/dart"            class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='dart' %}text-indigo-700 font-semibold{% endif %}"><span>📊</span> DART 재무위험</a>
+                    <a href="/pension"         class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='pension' %}text-indigo-700 font-semibold{% endif %}"><span>📈</span> NPS 이탈 신호</a>
+                    <a href="/insurance-cross" class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='insurance_cross' %}text-indigo-700 font-semibold{% endif %}"><span>🔗</span> 4대보험 삼각검증</a>
+                    <div class="border-t border-slate-100 my-1"></div>
+                    <div class="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">신고 · 공개</div>
+                    <a href="/reports"         class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='reports' %}text-indigo-700 font-semibold{% endif %}"><span>📣</span> 공개 신고 집계</a>
+                    <div class="border-t border-slate-100 my-1"></div>
+                    <div class="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">시연 · 분석</div>
+                    <a href="/scenario"        class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='scenario' %}text-indigo-700 font-semibold{% endif %}"><span>📖</span> 시나리오</a>
+                    <a href="/m6"              class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active in ['m6','m6_embed'] %}text-indigo-700 font-semibold{% endif %}"><span>🛡</span> 부정수급 SDK</a>
+                    <a href="/scalability"     class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='scalability' %}text-indigo-700 font-semibold{% endif %}"><span>📡</span> 확산 가능성</a>
+                    <a href="/operator"        class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='operator' %}text-indigo-700 font-semibold{% endif %}"><span>🧑‍💼</span> 운영주체 시뮬</a>
+                    <a href="/audit"           class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='audit' %}text-indigo-700 font-semibold{% endif %}"><span>⚖</span> 자체점검</a>
+                    <a href="/judge"           class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='judge' %}text-indigo-700 font-semibold{% endif %}"><span>📋</span> 운영 가이드</a>
+                </div>
+            </div>
+
+            <a href="/신고" class="navlink ml-auto bg-rose-600 text-white hover:bg-rose-700 hover:text-white font-semibold {% if active=='report' %}ring-2 ring-rose-300{% endif %}">✍ 신고</a>
+        </nav>
+        <script>
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('more-menu-wrap');
+            if (wrap && !wrap.contains(e.target)) document.getElementById('more-dd').classList.add('hidden');
+        });
+        </script>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-6 py-8">
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="border-t border-slate-200 mt-16 py-7 text-[11px] text-slate-500">
+    <div class="max-w-7xl mx-auto px-6 space-y-2">
+        <div class="flex justify-between flex-wrap gap-2">
+            <span>{{ app_name }} · 장애인 노동 사각지대 점검 우선순위 AI</span>
+            <span>데이터 출처 · 고용노동부 · 근로복지공단 · 한국고용정보원 · 국세청 · 네이버 · Google</span>
+        </div>
+        <div class="text-[10px] text-slate-400 leading-snug">
+            ⓘ 본 시스템의 위험점수·도메인 분류·신호는 <b>참고 보조 지표</b>이며 공식 행정 처분 근거가 아닙니다.
+            공개 집계 페이지에는 신뢰도 기준 통과 분만 회사명을 노출하며 그 외는 마스킹됩니다.
+            신고 진위는 고용노동부 1350·지방고용노동청 공식 조사를 통해 확정됩니다.
+        </div>
+    </div>
+</footer>
+</body>
+</html>

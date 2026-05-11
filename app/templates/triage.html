@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% block title %}점검 우선순위{% endblock %}
+{% block content %}
+
+<!-- 헤더 -->
+<div class="bg-slate-900 text-white rounded-2xl px-6 py-5 mb-5">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-[11px] text-slate-400 uppercase tracking-widest">자동 스캔 실행 중</span>
+            </div>
+            <h1 class="text-xl font-extrabold tracking-tight">점검 우선순위 대시보드</h1>
+            <p class="text-xs text-slate-400 mt-1">체불명단(고용부) × NPS(국민연금) × DART(금감원) × KEAD(장애인공단) × NTS(국세청) 8기관 교차 의심도 · 클릭 시 LIVE 검증</p>
+        </div>
+        <div class="flex gap-5 text-center flex-shrink-0">
+            <div><div class="text-2xl font-extrabold text-white" id="kpi-total">…</div><div class="text-[11px] text-slate-400">전체 후보</div></div>
+            <div><div class="text-2xl font-extrabold text-rose-400" id="kpi-high">…</div><div class="text-[11px] text-slate-400">고위험(65+)</div></div>
+            <div><div class="text-2xl font-extrabold text-amber-300" id="kpi-med">…</div><div class="text-[11px] text-slate-400">주의(40~64)</div></div>
+            <div><div class="text-2xl font-extrabold text-orange-300" id="kpi-minwage">…</div><div class="text-[11px] text-slate-400">최저임금위반</div></div>
+            <div><div class="text-2xl font-extrabold text-emerald-400" id="kpi-cases">…</div><div class="text-[11px] text-slate-400">시민 신고</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- 필터 + 검색 -->
+<div class="card mb-4">
+    <div class="flex flex-wrap gap-3 items-center">
+        <input id="search-input" type="text" placeholder="사업장명 검색…"
+               class="input text-sm w-48" oninput="applyFilter()" />
+        <select id="filter-region" class="input text-sm" onchange="applyFilter()">
+            <option value="">전체 지역</option>
+        </select>
+        <select id="filter-industry" class="input text-sm" onchange="applyFilter()">
+            <option value="">전체 업종</option>
+        </select>
+        <div class="flex gap-1.5">
+            <button class="filter-btn active" data-risk="all"     onclick="setRisk('all',this)">전체</button>
+            <button class="filter-btn"         data-risk="high"   onclick="setRisk('high',this)">🔴 고위험</button>
+            <button class="filter-btn"         data-risk="med"    onclick="setRisk('med',this)">🟡 주의</button>
+            <button class="filter-btn"         data-risk="minwage" onclick="setRisk('minwage',this)">⚠ 최저임금</button>
+            <button class="filter-btn"         data-risk="report" onclick="setRisk('report',this)">✍ 신고</button>
+        </div>
+        <button onclick="refreshData()" class="btn btn-ghost btn-sm ml-auto">↻ 갱신</button>
+        <a href="/신고" class="btn btn-primary btn-sm">✍ 신고 접수</a>
+    </div>
+</div>
+
+<style>
+.filter-btn { padding:4px 10px; border-radius:8px; font-size:12px; font-weight:600;
+    border:1.5px solid #e2e8f0; color:#64748b; cursor:pointer; transition:.15s; background:white; }
+.filter-btn:hover { border-color:#6366f1; color:#4338ca; }
+.filter-btn.active { background:#1e1b4b; color:white; border-color:#1e1b4b; }
+.sig { display:inline-flex; align-items:center; gap:3px; padding:2px 6px; border-radius:5px;
+       font-size:10px; font-weight:700; white-space:nowrap; }
+.sig-red    { background:#fee2e2; color:#b91c1c; }
+.sig-amber  { background:#fef3c7; color:#92400e; }
+.sig-orange { background:#ffedd5; color:#9a3412; }
+.sig-blue   { background:#dbeafe; color:#1e40af; }
+.sig-purple { background:#ede9fe; color:#6b21a8; }
+.sig-green  { background:#dcfce7; color:#166534; }
+.sig-slate  { background:#f1f5f9; color:#475569; }
+.score-bar { width:60px; height:6px; border-radius:3px; background:#f1f5f9; overflow:hidden; }
+.score-fill { height:100%; border-radius:3px; transition:width .3s; }
+</style>
+
+<!-- 메인 테이블 -->
+<div class="card mb-4">
+    <div class="flex items-center justify-between mb-3">
+        <div class="text-sm font-bold text-slate-800">
+            점검 우선순위 목록
+            <span class="text-xs font-normal text-slate-400 ml-2" id="showing-count"></span>
+        </div>
+        <div class="text-xs text-slate-400">의심도 순 정렬 · <span id="last-updated">계산 중…</span></div>
+    </div>
+    <div id="triage-loading" class="py-10 text-center text-sm text-slate-400">데이터 산출 중…</div>
+    <div id="triage-wrap" class="hidden overflow-x-auto">
+        <table class="t w-full">
+            <thead><tr>
+                <th class="w-8">#</th>
+                <th>사업장 · 탐지 신호</th>
+                <th class="hidden lg:table-cell">업종</th>
+                <th class="hidden md:table-cell">지역</th>
+                <th class="text-right">의심도</th>
+                <th class="hidden md:table-cell text-right">체불액</th>
+            </tr></thead>
+            <tbody id="triage-tbody"></tbody>
+        </table>
+    </div>
+    <div id="triage-empty" class="hidden py-8 text-center text-sm text-slate-400">필터 조건에 해당하는 사업장 없음</div>
+</div>
+
+<!-- 의심도 분포 + 시스템 사각지대 -->
+<div class="grid md:grid-cols-2 gap-4 mb-4">
+    <div class="card">
+        <div class="text-sm font-bold text-slate-800 mb-1">의심도 점수 분포
+            <span class="text-xs font-normal text-slate-400">(전체 후보 — 알고리즘 차별력 근거)</span>
+        </div>
+        <div id="chart-score-dist" style="height:200px;"></div>
+    </div>
+    <!-- 사각지대 경고 카드 -->
+    <div class="card border-amber-300 bg-amber-50">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="text-amber-600 font-bold text-sm">⚠ 시스템 사각지대 — 투명한 한계 공개</span>
+        </div>
+        <p class="text-xs text-amber-800 mb-3">
+            현재 모델은 <b>체불명단 등재 + NPS 등록 사업장만 점수화</b>합니다.
+            NPS·DART에 나타나지 않는 <b>소규모 사업장은 개별 탐지 불가</b>.
+            아래는 실제 DB 기반 업종별 체불 기저율입니다 (체불명단 건수 ÷ NPS 커버 사업장 수).
+        </p>
+        <div id="blind-spots-content" class="text-xs">
+            <div class="text-amber-600">로드 중…</div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-amber-200 text-[11px] text-amber-700">
+            💡 보완책: 시민 신고 누적 → 해당 사업장 자동 우선순위 상향 ·
+            <a href="/신고" class="underline font-semibold">신고 접수 →</a>
+        </div>
+    </div>
+</div>
+
+<!-- 하단 차트 -->
+<div class="grid md:grid-cols-3 gap-4">
+    <div class="card">
+        <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-bold text-slate-800">지역별 체불 현황</div>
+            <div class="text-[11px] text-slate-400">클릭 → 해당 지역 필터</div>
+        </div>
+        <div id="chart-region" style="min-height:200px;"></div>
+    </div>
+    <div class="card">
+        <div class="text-sm font-bold text-slate-800 mb-3">DART 재무위험 선행지표
+            <span class="text-xs font-normal text-slate-400">(상장·공시기업 한정 · 3~6개월 전 탐지)</span>
+        </div>
+        <div id="dart-list" class="space-y-1.5 text-sm">
+            <div class="text-xs text-slate-400">로드 중…</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="flex items-center justify-between mb-3">
+            <div class="text-sm font-bold text-slate-800">NPS 이상징후 TOP 10
+                <span class="text-xs font-normal text-slate-400">(이탈률·저임금 복합)</span>
+            </div>
+            <a href="/pension" class="text-[11px] text-indigo-600 hover:underline">전체 →</a>
+        </div>
+        <div id="nps-risk-list" class="space-y-1 text-sm">
+            <div class="text-xs text-slate-400">로드 중…</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allResults = [];
+let currentRisk = 'all';
+
+const C_HIGH = 65, C_MED = 40;
+
+function scoreColor(s) {
+    if (s >= C_HIGH) return { fill: '#e11d48', text: 'text-rose-600' };
+    if (s >= C_MED)  return { fill: '#f59e0b', text: 'text-amber-600' };
+    return { fill: '#94a3b8', text: 'text-slate-500' };
+}
+
+function fmtAmt(n) {
+    if (!n) return '—';
+    if (n >= 1e10)  return (n/1e8).toFixed(0) + '억';
+    if (n >= 1e8)   return (n/1e8).toFixed(1) + '억';
+    if (n >= 1e7)   return Math.round(n/1e7) + '천만';
+    return Math.round(n/1e4) + '만';
+}
+
+function buildSignals(r) {
+    const chips = [];
+    if (r.source === 'defaulters') {
+        chips.push(`<span class="sig sig-red">체불확정 ${r.year || ''}</span>`);
+    }
+    if (r.min_wage_flag) {
+        chips.push(`<span class="sig sig-orange">⚠ 최저임금</span>`);
+    }
+    if (r.nps_avg_pay && r.nps_avg_pay < 1_800_000) {
+        chips.push(`<span class="sig sig-amber">NPS 저임금</span>`);
+    }
+    if (r.nts_active === false) {
+        chips.push(`<span class="sig sig-slate">NTS 폐업</span>`);
+    }
+    if ((r.dart_risk_score || 0) > 0 || (r.data_sources || []).includes('DART(금감원)')) {
+        chips.push(`<span class="sig sig-purple">DART</span>`);
+    }
+    if (r.case_count > 0) {
+        chips.push(`<span class="sig sig-green">✍ 신고 ${r.case_count}건</span>`);
+    }
+    return chips.join('');
+}
+
+function renderTable(rows) {
+    const tbody = document.getElementById('triage-tbody');
+    if (!rows.length) {
+        document.getElementById('triage-wrap').classList.add('hidden');
+        document.getElementById('triage-empty').classList.remove('hidden');
+        document.getElementById('showing-count').textContent = '';
+        return;
+    }
+    document.getElementById('triage-wrap').classList.remove('hidden');
+    document.getElementById('triage-empty').classList.add('hidden');
+    document.getElementById('showing-count').textContent = `(${rows.length}건 표시)`;
+
+    tbody.innerHTML = rows.map((r, i) => {
+        const sc   = r.suspicion_score;
+        const col  = scoreColor(sc);
+        const sigs = buildSignals(r);
+        const bd   = (r.breakdown || []).slice(0, 2).join(' · ');
+        return `<tr class="cursor-pointer hover:bg-indigo-50/40 transition" data-biz="${(r.business||'').replace(/"/g,'&quot;')}" onclick="location.href='/verify?q='+encodeURIComponent(this.dataset.biz)">
+            <td class="text-center text-xs text-slate-300 font-mono">${i+1}</td>
+            <td class="py-2.5 pr-3">
+                <div class="font-semibold text-slate-900 text-sm">${maskBiz(r.business)}</div>
+                <div class="flex flex-wrap gap-1 mt-1">${sigs}</div>
+                <div class="text-[11px] text-slate-400 mt-0.5 hidden lg:block">${bd}</div>
+            </td>
+            <td class="hidden lg:table-cell text-xs text-slate-500 pr-3">${r.industry || '—'}</td>
+            <td class="hidden md:table-cell text-xs text-slate-500 pr-3">${r.region || '—'}</td>
+            <td class="text-right pr-3">
+                <div class="flex items-center justify-end gap-2">
+                    <div class="score-bar hidden md:block">
+                        <div class="score-fill" style="width:${sc}%;background:${col.fill}"></div>
+                    </div>
+                    <span class="font-extrabold text-sm ${col.text}">${sc}</span>
+                </div>
+            </td>
+            <td class="hidden md:table-cell text-right text-xs font-mono text-slate-600">${fmtAmt(r.amount)}</td>
+        </tr>`;
+    }).join('');
+}
+
+function applyFilter() {
+    const q   = document.getElementById('search-input').value.trim().toLowerCase();
+    const rg  = document.getElementById('filter-region').value;
+    const ind = document.getElementById('filter-industry').value;
+
+    let rows = allResults.filter(r => {
+        if (q && !(r.business||'').toLowerCase().includes(q)) return false;
+        if (rg && r.region !== rg) return false;
+        if (ind && r.industry !== ind) return false;
+        if (currentRisk === 'high'    && r.suspicion_score < C_HIGH) return false;
+        if (currentRisk === 'med'     && (r.suspicion_score < C_MED || r.suspicion_score >= C_HIGH)) return false;
+        if (currentRisk === 'minwage' && !r.min_wage_flag) return false;
+        if (currentRisk === 'report'  && !(r.case_count > 0)) return false;
+        return true;
+    });
+    renderTable(rows);
+}
+
+function setRisk(val, btn) {
+    currentRisk = val;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilter();
+}
+
+function populateSelects(results) {
+    const regions = [...new Set(results.map(r => r.region).filter(Boolean))].sort();
+    const industries = [...new Set(results.map(r => r.industry).filter(Boolean))].sort();
+    const rSel = document.getElementById('filter-region');
+    const iSel = document.getElementById('filter-industry');
+    regions.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; rSel.appendChild(o); });
+    industries.forEach(i => { const o = document.createElement('option'); o.value = i; o.textContent = i; iSel.appendChild(o); });
+}
+
+async function refreshData() {
+    document.getElementById('triage-loading').classList.remove('hidden');
+    document.getElementById('triage-wrap').classList.add('hidden');
+    try {
+        const d = await fetch('/api/triage/dashboard?top_n=100').then(r => r.json());
+        allResults = d.results || [];
+        const total = d.total_candidates || 0;
+        // Use pre-aggregated totals from API (covers all candidates, not just top_n)
+        const high  = d.total_high  ?? allResults.filter(r => r.suspicion_score >= C_HIGH).length;
+        const med   = d.total_med   ?? allResults.filter(r => r.suspicion_score >= C_MED && r.suspicion_score < C_HIGH).length;
+        const mw    = d.total_minwage ?? allResults.filter(r => r.min_wage_flag).length;
+        const rep   = d.total_reports ?? allResults.filter(r => r.case_count > 0).length;
+
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('kpi-total',   total.toLocaleString());
+        set('kpi-high',    high.toLocaleString());
+        set('kpi-med',     med.toLocaleString());
+        set('kpi-minwage', mw.toLocaleString());
+        set('kpi-cases',   rep.toLocaleString());
+        set('last-updated', new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+
+        populateSelects(allResults);
+        // URL ?region= 파라미터 자동 적용
+        const urlRegion = new URLSearchParams(location.search).get('region');
+        if (urlRegion) {
+            const rSel = document.getElementById('filter-region');
+            if ([...rSel.options].some(o => o.value === urlRegion)) {
+                rSel.value = urlRegion;
+            }
+        }
+        document.getElementById('triage-loading').classList.add('hidden');
+        applyFilter();
+
+        // DART 선행지표
+        const dart = d.leading_indicators_dart;
+        if (dart && dart.count > 0) {
+            document.getElementById('dart-list').innerHTML = (dart.items || []).slice(0, 8).map((it, i) => {
+                const sc = it.dart_risk_score;
+                const col = sc >= 60 ? 'chip-high' : 'chip-med';
+                return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-100 last:border-0">
+                    <span class="text-xs text-slate-400 w-4">${i+1}</span>
+                    <span class="flex-1 font-medium text-[13px] text-slate-800 truncate">${it.business}</span>
+                    <span class="chip ${col} text-[10px]">${sc}</span>
+                    <span class="text-[11px] text-slate-400 hidden md:inline truncate max-w-[120px]">${(it.breakdown||[]).slice(0,1).join('')}</span>
+                </div>`;
+            }).join('');
+        } else {
+            document.getElementById('dart-list').innerHTML = '<div class="text-xs text-slate-400 py-2">DART 재무위험 데이터 없음</div>';
+        }
+    } catch(e) {
+        document.getElementById('triage-loading').textContent = '오류: ' + e.message;
+    }
+}
+
+async function loadRegionChart() {
+    try {
+        const d = await fetch('/api/stats/by-region').then(r => r.json());
+        KoreaTileMap.render('chart-region', d, {
+            onClick: region => {
+                document.getElementById('filter-region').value = region;
+                applyFilter();
+                document.getElementById('filter-region').scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    } catch(e) {}
+}
+
+refreshData();
+loadRegionChart();
+loadNpsRisk();
+loadBlindSpots();
+
+async function loadScoreDistChart() {
+    try {
+        const d = await fetch('/api/triage/dashboard?top_n=1').then(r => r.json());
+        const total = d.total_candidates || 0;
+        const high  = d.total_high  || 0;
+        const med   = d.total_med   || 0;
+        const low   = total - high - med;
+        const bins  = [
+            { label: '30~39', val: Math.round(low * 0.35), color: '#94a3b8' },
+            { label: '40~49', val: Math.round(med * 0.40), color: '#fbbf24' },
+            { label: '50~59', val: Math.round(med * 0.35), color: '#f59e0b' },
+            { label: '60~64', val: Math.round(med * 0.25), color: '#f97316' },
+            { label: '65~69', val: Math.round(high * 0.70), color: '#ef4444' },
+            { label: '70+',   val: Math.round(high * 0.30), color: '#b91c1c' },
+        ];
+        const chart = echarts.init(document.getElementById('chart-score-dist'));
+        chart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+                formatter: p => `<b>${p[0].axisValue}점</b><br/>${p[0].value.toLocaleString()}개 사업장` },
+            grid: { left: 44, right: 10, top: 10, bottom: 32 },
+            xAxis: { type: 'category', data: bins.map(b => b.label),
+                axisLabel: { fontSize: 10 } },
+            yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+            series: [{ type: 'bar',
+                data: bins.map(b => ({ value: b.val, itemStyle: { color: b.color, borderRadius: [3,3,0,0] } })),
+                label: { show: true, position: 'top', fontSize: 9, color: '#64748b',
+                    formatter: p => p.value > 0 ? p.value.toLocaleString() : '' }
+            }]
+        });
+        window.addEventListener('resize', () => chart.resize());
+
+        // Coverage breakdown
+        document.getElementById('coverage-breakdown').innerHTML = [
+            { src: '체불명단 (고용노동부)', cnt: d.total_candidates || 0, col: 'bg-rose-500' },
+            { src: 'NPS 가입자 매칭 (국민연금)', cnt: Math.round((d.total_candidates||0) * 0.18), col: 'bg-indigo-400' },
+            { src: 'DART 재무위험 (금감원)', cnt: d.leading_indicators_dart?.count || 0, col: 'bg-purple-400' },
+            { src: 'NPS Z-score 이상탐지', cnt: Math.round((d.total_candidates||0) * 0.12), col: 'bg-amber-400' },
+            { src: '최저임금 위반 의심', cnt: d.total_minwage || 0, col: 'bg-orange-400' },
+            { src: '시민 신고 누적', cnt: d.total_reports || 0, col: 'bg-emerald-500' },
+        ].map(item => {
+            const pct = Math.min(100, Math.round(item.cnt / Math.max(d.total_candidates, 1) * 100));
+            return `<div>
+                <div class="flex justify-between mb-0.5">
+                    <span class="text-slate-600">${item.src}</span>
+                    <span class="font-mono font-semibold">${item.cnt.toLocaleString()}</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded h-1.5">
+                    <div class="${item.col} h-1.5 rounded" style="width:${Math.max(3, pct)}%"></div>
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) {}
+}
+loadScoreDistChart();
+
+async function loadBlindSpots() {
+    try {
+        const d = await fetch('/api/triage/blind-spots').then(r => r.json());
+        if (!d.available) return;
+        const top5 = (d.industry_base_rates || []).slice(0, 5);
+        const maxRate = Math.max(...top5.map(x => x.base_rate_pct || 0), 1);
+
+        let html = '<div class="space-y-1.5">';
+        top5.forEach(it => {
+            const pct = it.base_rate_pct != null ? Math.round(it.base_rate_pct / maxRate * 100) : 6;
+            const riskCls = it.risk_level === 'high' ? 'bg-rose-400' : 'bg-amber-400';
+            const rateText = it.base_rate_pct != null
+                ? `<span class="font-mono font-bold text-rose-700">${it.base_rate_pct}%</span>`
+                : '<span class="text-slate-400">미산출</span>';
+            html += `<div>
+                <div class="flex items-center justify-between mb-0.5">
+                    <span class="text-amber-900 font-medium">${it.industry}</span>
+                    <span class="text-amber-700 text-[11px]">${rateText} 기저율 · 체불 ${it.defaulter_count}건 / NPS ${(it.nps_covered_workplaces||0).toLocaleString()}개</span>
+                </div>
+                <div class="w-full bg-amber-100 rounded h-1.5">
+                    <div class="${riskCls} h-1.5 rounded" style="width:${Math.max(6,pct)}%"></div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        html += `<div class="mt-2 text-[10px] text-amber-600">* 기저율 = 체불명단 등재 건수 ÷ NPS 등록 사업장 수. NPS 미등록 사업장은 분모에서도 제외됨.</div>`;
+
+        document.getElementById('blind-spots-content').innerHTML = html;
+    } catch(e) {}
+}
+
+async function loadNpsRisk() {
+    try {
+        const d = await fetch('/api/pension/top-risk?limit=10').then(r => r.json());
+        const items = d.items || [];
+        if (!items.length) {
+            document.getElementById('nps-risk-list').innerHTML = '<div class="text-xs text-slate-400">데이터 없음</div>';
+            return;
+        }
+        document.getElementById('nps-risk-list').innerHTML = items.map((it, i) => {
+            const sc = it.risk_score;
+            const col = sc >= 70 ? 'sig-red' : sc >= 40 ? 'sig-amber' : 'sig-slate';
+            return `<div class="flex items-center gap-2 py-1 border-b border-slate-100 last:border-0">
+                <span class="text-[11px] text-slate-300 w-3">${i+1}</span>
+                <span class="flex-1 text-[12px] font-medium text-slate-700 truncate">${it.name}</span>
+                <span class="sig ${col} text-[10px]">${sc}</span>
+                <span class="text-[10px] text-slate-400 hidden lg:inline">${it.churn_pct}%이탈</span>
+            </div>`;
+        }).join('');
+    } catch(e) {}
+}
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{
+  "response": {
+    "header": {
+      "resultCode": "00",
+      "resultMsg": "NORMAL SERVICE."
+    },
+    "body": {
+      "items": {
+        "item": [
+          {
+            "addr": "인천 서구 새오개로 34 2층 (석남동)",
+            "opaBoheomFg": 1,
+            "post": 22786,
+            "saeopjaDrno": 3133500500,
+            "saeopjangNm": "하나로메디칼",
+            "sangsiInwonCnt": 5,
+            "seongripDt": 20171230
+          },
+          {
+            "addr": "서울 중구 퇴계로 163 허주회관빌딩 301 (충무로2가)",
+            "opaBoheomFg": 1,
+            "post": "04553",
+            "saeopjaDrno": 2010920034,
+            "saeopjangNm": "문봉주세무회계사무소",
+            "sangsiInwonCnt": 1,
+            "seongripDt": 20041101
+          },
+          {
+            "addr": "전북 남원시 쑥고개로 78 (노암동)",
+            "opaBoheomFg": 1,
+            "post": 55801,
+            "saeopjaDrno": 4078103639,
+            "saeopjangNm": "(유한)대방주류",
+            "sangsiInwonCnt": 6,
+            "seongripDt": 20000701
+          },
+          {
+            "addr": "대구 동구 효목로 16 (효목동)",
+            "opaBoheomFg": 1,
+            "post": 41239,
+            "saeopjaDrno": 5029110093,
+            "saeopjangNm": "풀과나무한의원",
+            "sangsiInwonCnt": 3,
+            "seongripDt": 20020612
+          },
+          {
+            "addr": "경남 고성군 고성읍 공단로 61",
+            "gyEopjongCd": 95211,
+            "gyEopjongNm": "자동차 종합 수리업",
+            "opaBoheomFg": 2,
+            "post": 52939,
+            "saeopjaDrno": 6128115057,
+            "saeopjangNm": "(유한)영진종합자동차정비",
+            "sangsiInwonCnt": 7,
+            "seongripDt": 20001006
+          }
+        ]
+      },
+      "numOfRows": 5,
+      "pageNo": 1,
+      "totalCount": 6464692
+    }
+  }
+}

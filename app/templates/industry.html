@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}업종 드릴다운{% endblock %}
+{% block content %}
+<div class="flex items-center gap-4 mb-6">
+    <h1 class="text-xl font-bold">업종별 임금체불 분석</h1>
+    <select id="industry-select" class="border rounded px-3 py-1.5 text-sm"
+            onchange="loadIndustry(this.value)"></select>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="stat-card lg:col-span-2">
+        <h2 class="font-semibold mb-3">지역별 분포</h2>
+        <div id="industry-region-chart" style="height: 380px;"></div>
+    </div>
+    <div class="stat-card">
+        <h2 class="font-semibold mb-3">차수별 추이</h2>
+        <div id="industry-trend-chart" style="height: 380px;"></div>
+    </div>
+</section>
+
+<section class="stat-card">
+    <h2 class="font-semibold mb-3">사업장 명단 <span class="text-xs text-slate-400 ml-2" id="industry-rows-info"></span></h2>
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">차수</th>
+                <th class="py-2">사업장</th>
+                <th class="py-2">대표</th>
+                <th class="py-2">지역</th>
+                <th class="py-2 text-right">체불액</th>
+            </tr>
+        </thead>
+        <tbody id="industry-rows"></tbody>
+    </table>
+</section>
+
+<script>
+async function loadIndustryList() {
+    const items = await fetch('/api/stats/by-industry').then(r => r.json());
+    const sel = document.getElementById('industry-select');
+    sel.innerHTML = items.map(i => `<option value="${i.industry}">${i.industry} (${i.count})</option>`).join('');
+    if (items.length) loadIndustry(items[0].industry);
+}
+
+async function loadIndustry(name) {
+    const data = await fetch(`/api/industry/${encodeURIComponent(name)}`).then(r => r.json());
+
+    const c1 = echarts.init(document.getElementById('industry-region-chart'));
+    c1.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: 80, right: 30, top: 30, bottom: 50 },
+        xAxis: { type: 'category', data: data.by_region.map(r => r.region), axisLabel: { rotate: 45 } },
+        yAxis: { type: 'value' },
+        series: [{ type: 'bar', data: data.by_region.map(r => r.count), itemStyle: { color: '#3b82f6' } }]
+    });
+
+    const c2 = echarts.init(document.getElementById('industry-trend-chart'));
+    c2.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: data.by_round.map(r => r.round) },
+        yAxis: { type: 'value' },
+        series: [{ type: 'line', data: data.by_round.map(r => r.count), smooth: true, itemStyle: { color: '#dc2626' } }]
+    });
+
+    const tbody = document.getElementById('industry-rows');
+    tbody.innerHTML = data.rows.map(r => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2">${r.round}</td>
+            <td class="py-2">${r.company}</td>
+            <td class="py-2">${r.name}</td>
+            <td class="py-2">${r.region}</td>
+            <td class="py-2 text-right">${fmtKRWFull(r.amount)}</td>
+        </tr>
+    `).join('');
+    document.getElementById('industry-rows-info').textContent = `${data.rows.length}건`;
+}
+loadIndustryList();
+</script>
+{% endblock %}

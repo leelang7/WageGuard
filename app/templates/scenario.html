@@ -1,0 +1,562 @@
+{% extends "base.html" %}
+{% block title %}시나리오{% endblock %}
+{% block content %}
+<div class="mb-5">
+    <h1 class="text-2xl font-extrabold tracking-tight">📖 시나리오 — 시스템이 실제로 어떻게 동작하는가</h1>
+    <p class="text-sm text-slate-600 mt-1">구체 시나리오와 실측 데이터로 5분 안에 "이거 진짜 돌아가네"를 이해합니다.</p>
+    <div class="mt-3">
+        <a href="/rdp-expansion" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-700 text-white text-sm rounded-lg hover:bg-rose-800 transition font-semibold">
+            🔌 Track A SDK → 고용노동부 전체 시스템 확장 검토 →
+        </a>
+    </div>
+</div>
+
+<!-- 탭 네비게이션 -->
+<div class="flex gap-1 mb-0 border-b border-slate-200">
+    <button onclick="switchTab('trackB')" id="tab-trackB" class="tab-btn active px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 border-slate-200">
+        📈 Track B · 체불탐지
+    </button>
+    <button onclick="switchTab('trackA')" id="tab-trackA" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 border-slate-200">
+        🛡 Track A · RDP 차단
+    </button>
+    <button onclick="switchTab('combined')" id="tab-combined" class="tab-btn px-4 py-2 text-sm font-semibold rounded-t-lg border border-b-0 border-slate-200">
+        🔗 통합 동작
+    </button>
+</div>
+
+<!-- Tab: Track B 체불탐지 -->
+<div id="pane-trackB" class="tab-pane space-y-5 pt-5">
+
+    <!-- NPS Z-score 이상탐지 -->
+    <div class="card border-indigo-200">
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="chip chip-blue">시나리오 1 · 선행지표 탐지</span>
+            <h2 class="text-lg font-bold">체불 발생 전 6개월 — NPS Z-score 선제 포착</h2>
+        </div>
+        <p class="text-sm text-slate-600 mb-4">"Z건설(서울)" — 체불명단 미등재, KEAD 무관. 기존 시스템으로는 탐지 불가. 그러나 NPS·DART 선행지표 3종이 포착.</p>
+
+        <div class="grid md:grid-cols-2 gap-5">
+            <div>
+                <div class="text-xs text-slate-500 font-semibold mb-3">탐지 타임라인</div>
+                <div class="space-y-3">
+                    <div class="flex gap-3 items-start">
+                        <div class="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs flex items-center justify-center font-bold">1</div>
+                        <div>
+                            <div class="text-sm font-semibold">T−6개월: NPS Z-score 이상 감지</div>
+                            <div class="text-xs text-slate-500">가입자 수 Z = −2.4 (2σ 이상 급감) → 자동 경보</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <div class="flex-shrink-0 w-6 h-6 rounded-full bg-rose-100 text-rose-700 text-xs flex items-center justify-center font-bold">2</div>
+                        <div>
+                            <div class="text-sm font-semibold">T−4개월: DART 재무 경보</div>
+                            <div class="text-xs text-slate-500">부채비율 385%, 영업손실 2분기 연속</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <div class="flex-shrink-0 w-6 h-6 rounded-full bg-rose-300 text-rose-900 text-xs flex items-center justify-center font-bold">3</div>
+                        <div>
+                            <div class="text-sm font-semibold">T−2개월: 종합 위험도 65 → 우선순위 상승</div>
+                            <div class="text-xs text-slate-500">점검관 사전 개입 권고 → 운영주체 대시보드 자동 표시</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <div class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs flex items-center justify-center font-bold">4</div>
+                        <div>
+                            <div class="text-sm font-semibold">T+0: 근로자 임금 보호 완료</div>
+                            <div class="text-xs text-slate-500">체불 발생 전 점검 실시 → 예방 성공</div>
+                        </div>
+                    </div>
+                </div>
+
+                <table class="t text-xs mt-4">
+                    <thead><tr><th>선행지표</th><th>신호</th><th class="text-right">기여</th></tr></thead>
+                    <tbody>
+                        <tr><td>NPS Z-score</td><td class="text-rose-700">Z = −2.4</td><td class="text-right text-rose-700 mono">+20</td></tr>
+                        <tr><td>DART 부채비율</td><td class="text-rose-700">385% (기준 300% 초과)</td><td class="text-right text-rose-700 mono">+25</td></tr>
+                        <tr><td>DART 영업손실</td><td class="text-rose-700">−12억 × 2분기</td><td class="text-right text-rose-700 mono">+20</td></tr>
+                        <tr class="font-bold border-t border-slate-300"><td colspan="2">→ 재무위험 합계</td><td class="text-right text-rose-800 mono">65</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-3 flex gap-2 flex-wrap items-center">
+                    <a href="/verify?q=%ED%95%9C%EC%9D%BC%EA%B1%B4%EC%84%A4"
+                       class="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600 text-white text-xs rounded-lg hover:bg-rose-700 transition font-semibold">
+                        ▶ LIVE 검증 — 한일건설
+                    </a>
+                    <a href="/dart" class="text-xs text-indigo-700 underline">→ DART 분석</a>
+                    <a href="/pension" class="text-xs text-indigo-700 underline">→ NPS Z-score 라이브</a>
+                </div>
+            </div>
+
+            <div>
+                <div class="text-xs text-slate-500 font-semibold mb-2">NPS 가입자수 추이 (Z-score 이상탐지)</div>
+                <div id="chart-nps" style="height:230px;"></div>
+                <div class="text-xs text-slate-400 mt-1">빨간 막대: Z-score ≤ −2.0 (이상 탐지 구간)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Track B + ML 크로스 스코어링 -->
+    <div class="card border-slate-200">
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="chip chip-flat">시나리오 2 · 8기관 크로스 + ML</span>
+            <h2 class="text-lg font-bold">위장 장애인 고용 사업장 — 자동 우선순위 배정</h2>
+        </div>
+        <p class="text-sm text-slate-600 mb-3">"X학원" — 의무고용 부담금 회피용 페이퍼 등록 의심. KEAD 점검관 자원 한정 → WageGuard가 TOP으로 자동 배정.</p>
+
+        <div class="grid md:grid-cols-2 gap-5">
+            <div>
+                <table class="t text-xs">
+                    <thead><tr><th>데이터셋</th><th>신호</th><th class="text-right">기여</th></tr></thead>
+                    <tbody>
+                        <tr><td>국세청 사업자상태</td><td class="text-rose-700">2025.12 휴업 ✗</td><td class="text-right text-rose-700 mono">+35</td></tr>
+                        <tr><td>체불사업주 명단</td><td class="text-rose-700">2025-Q1 등재 ✗</td><td class="text-right text-rose-700 mono">+25</td></tr>
+                        <tr><td>4대보험 삼각검증</td><td class="text-rose-700">KEAD 5명 vs 보험 0명</td><td class="text-right text-rose-700 mono">+20</td></tr>
+                        <tr><td>ML P(체불) = 0.85</td><td class="text-rose-700">Logistic Regression</td><td class="text-right text-rose-700 mono">+17</td></tr>
+                        <tr class="font-bold border-t border-slate-300"><td colspan="2">의심도 합계 → 점검 우선순위 TOP</td><td class="text-right text-rose-800 mono">97</td></tr>
+                    </tbody>
+                </table>
+                <div class="mt-3 bg-indigo-50 border border-indigo-200 rounded p-3 text-sm">
+                    <b>운영주체 대시보드 자동 표시</b>:<br>
+                    <span class="text-xs">"X학원 · 의심도 97 · 휴업+체불+KEAD 등록 모순 → KEAD 점검관 우선 출동"</span>
+                </div>
+                <div class="mt-3 flex gap-2 flex-wrap items-center">
+                    <a href="/verify?q=%28%EC%A3%BC%29%EC%84%BC%ED%8A%B8%EB%A1%A4"
+                       class="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600 text-white text-xs rounded-lg hover:bg-rose-700 transition font-semibold">
+                        ▶ LIVE 검증 — (주)센트롤
+                    </a>
+                    <a href="/triage" class="text-xs text-indigo-700 underline">→ 라이브 TOP20 대시보드</a>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold mb-2">ML 특성 중요도 (학습 가중치)</div>
+                <div id="chart-features" style="height:190px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 선행지표 3종 수렴 타임라인 -->
+    <div class="card border-emerald-200 bg-emerald-50">
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="chip chip-low">시나리오 3 · 선행지표 수렴</span>
+            <h2 class="text-lg font-bold">3개 선행지표 수렴 — 체불 발생 전 경보 타임라인</h2>
+        </div>
+        <p class="text-xs text-slate-600 mb-3">DART·NPS·4대보험 3개 채널이 동시에 상승 → 체불 발생 전 6개월 경보. 단일 소스는 놓치지만 교차 수렴은 탐지.</p>
+        <div id="chart-convergence" style="height:240px;"></div>
+        <div class="grid md:grid-cols-3 gap-2 mt-3 text-xs">
+            <div class="bg-purple-50 border border-purple-200 rounded p-2">
+                <b class="text-purple-800">📊 DART 재무위험</b>
+                <div class="text-slate-600 mt-0.5">T−5: 부채비율 200% → T−2: 420%<br>영업손실 2분기 연속</div>
+            </div>
+            <div class="bg-indigo-50 border border-indigo-200 rounded p-2">
+                <b class="text-indigo-800">📈 NPS Z-score</b>
+                <div class="text-slate-600 mt-0.5">T−4: Z = −1.8 → T−1: Z = −2.7<br>가입자 급감 이상탐지</div>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded p-2">
+                <b class="text-amber-800">🔗 4대보험 불일치</b>
+                <div class="text-slate-600 mt-0.5">T−3: NPS vs 건보 20%↑ 불일치<br>상실률 45% 초과</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Track A RDP 차단 -->
+<div id="pane-trackA" class="tab-pane hidden space-y-5 pt-5">
+    <div class="card border-rose-200">
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="chip chip-high">Track A · SDK</span>
+            <h2 class="text-lg font-bold">해외 RDP 우회 실업급여 부정 신청 실시간 차단</h2>
+        </div>
+        <p class="text-sm text-slate-600 mb-4">
+            김OO — 일본 도쿄 거주, 한국 부모님 PC를 RDP로 접속. IP는 한국으로 위장, 본인 인증서·SMS 정상 통과.
+            기존 시스템: <b class="text-rose-700">통과(부정수급 발생)</b> →
+            WageGuard SDK: <b class="text-emerald-700">9 신호 → 점수 75 → 차단</b>
+        </p>
+
+        <div class="grid md:grid-cols-2 gap-5">
+            <div>
+                <div class="text-xs text-slate-500 font-semibold mb-3">차단 타임라인</div>
+                <div class="space-y-3">
+                    <div class="flex gap-3 items-start">
+                        <div class="w-6 h-6 flex-shrink-0 rounded-full bg-slate-100 text-slate-600 text-xs flex items-center justify-center font-bold">①</div>
+                        <div><div class="text-sm font-semibold">신청 버튼 클릭</div><div class="text-xs text-slate-500">고용24 페이지 로드 → SDK 자동 초기화</div></div>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <div class="w-6 h-6 flex-shrink-0 rounded-full bg-amber-100 text-amber-700 text-xs flex items-center justify-center font-bold">②</div>
+                        <div><div class="text-sm font-semibold">신호 수집 (≈2초)</div><div class="text-xs text-slate-500">timezone · WebRTC · WebGL · mouse/key 패턴 수집</div></div>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <div class="w-6 h-6 flex-shrink-0 rounded-full bg-rose-100 text-rose-700 text-xs flex items-center justify-center font-bold">③</div>
+                        <div><div class="text-sm font-semibold">점수 75 ≥ 임계(50) → 차단</div><div class="text-xs text-slate-500">추가 인증 요구 + 운영주체 서버 자동 로그</div></div>
+                    </div>
+                    <div class="flex gap-3 items-start">
+                        <div class="w-6 h-6 flex-shrink-0 rounded-full bg-slate-100 text-slate-600 text-xs flex items-center justify-center font-bold">④</div>
+                        <div>
+                            <div class="text-sm font-semibold">도입 방법: 1줄 추가</div>
+                            <div class="font-mono text-xs bg-slate-800 text-emerald-300 px-2 py-1 rounded mt-1">&lt;script src="wageguard-sdk.js"&gt;&lt;/script&gt;</div>
+                            <div class="text-xs text-slate-500 mt-1">정부 환경 자체 호스팅 → 외부 데이터 유출 0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <table class="t text-xs mt-4">
+                    <thead><tr><th>신호</th><th>측정값</th><th class="text-right">기여</th></tr></thead>
+                    <tbody>
+                        <tr><td>IP 국가</td><td class="text-slate-400">한국 (위장)</td><td class="text-right text-slate-400 mono">+0</td></tr>
+                        <tr><td>timezone</td><td class="text-rose-700">Asia/Tokyo</td><td class="text-right text-rose-700 mono">+15</td></tr>
+                        <tr><td>WebRTC 실제 IP</td><td class="text-rose-700">126.X.X.X (일본)</td><td class="text-right text-rose-700 mono">+25</td></tr>
+                        <tr><td>WebGL 렌더러</td><td class="text-rose-700">VirtualBox Graphics</td><td class="text-right text-rose-700 mono">+15</td></tr>
+                        <tr><td>마우스 jitter</td><td class="text-rose-700">σ ≥ 임계</td><td class="text-right text-rose-700 mono">+10</td></tr>
+                        <tr><td>키 입력 분산</td><td class="text-rose-700">분산 큼</td><td class="text-right text-rose-700 mono">+10</td></tr>
+                        <tr class="font-bold border-t border-slate-300"><td colspan="2">합계 → 차단</td><td class="text-right text-rose-800 mono">75</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-rose-50 border border-rose-200 rounded p-2">
+                        <div class="text-xs text-slate-500">Track A F1</div>
+                        <div class="text-xl font-extrabold text-rose-700 mono">0.864</div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded p-2">
+                        <div class="text-xs text-slate-500">응답 지연</div>
+                        <div class="text-xl font-extrabold text-amber-700 mono">&lt;200ms</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 rounded p-2">
+                        <div class="text-xs text-slate-500">도입</div>
+                        <div class="text-lg font-bold text-emerald-700">1줄 script</div>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex gap-2 flex-wrap">
+                    <a href="/m6/embed-demo" class="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-600 text-white text-xs rounded-lg hover:bg-rose-700 transition font-semibold">
+                        ▶ 통합 데모 시연
+                    </a>
+                    <a href="/rdp-expansion" class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-800 text-white text-xs rounded-lg hover:bg-slate-900 transition font-semibold">
+                        🔌 타 시스템 확장 검토
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <div class="text-xs text-slate-500 font-semibold mb-2">9-Signal 레이더 — 이 케이스 점수 분포</div>
+                <div id="chart-radar" style="height:280px;"></div>
+                <div class="text-xs text-slate-400 mt-1 text-center">외곽으로 갈수록 이상 신호 강도 높음</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: 통합 동작 -->
+<div id="pane-combined" class="tab-pane hidden space-y-5 pt-5">
+
+    <!-- 두 Track 통합 흐름 -->
+    <div class="card bg-slate-900 text-white">
+        <h2 class="text-lg font-bold mb-4">두 Track이 하나의 시스템에서 결합되는 방식</h2>
+        <ol class="space-y-4">
+            <li class="flex gap-3">
+                <div class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">1</div>
+                <div><div class="font-semibold text-sm">매일 새벽 배치</div><div class="text-xs text-slate-400 mt-0.5">8기관 API 결합 → 전 사업장 의심도 산출 (Track B)</div></div>
+            </li>
+            <li class="flex gap-3">
+                <div class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center font-bold">2</div>
+                <div><div class="font-semibold text-sm">선행 탐지</div><div class="text-xs text-slate-400 mt-0.5">DART + NPS Z-score + 4대보험 삼각검증 → 체불명단 등재 3~6개월 전 포착</div></div>
+            </li>
+            <li class="flex gap-3">
+                <div class="flex-shrink-0 w-7 h-7 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-bold">3</div>
+                <div><div class="font-semibold text-sm">점검관 출근</div><div class="text-xs text-slate-400 mt-0.5">의심도 TOP 100 대시보드 확인 → 점검 우선순위 결정</div></div>
+            </li>
+            <li class="flex gap-3">
+                <div class="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white text-xs flex items-center justify-center font-bold">4</div>
+                <div><div class="font-semibold text-sm">피드백 루프</div><div class="text-xs text-slate-400 mt-0.5">확정 사업장 → ML 학습 데이터 추가 → 가중치 자동 보정</div></div>
+            </li>
+            <li class="flex gap-3">
+                <div class="flex-shrink-0 w-7 h-7 rounded-full bg-rose-500 text-white text-xs flex items-center justify-center font-bold">5</div>
+                <div><div class="font-semibold text-sm">병행 운영</div><div class="text-xs text-slate-400 mt-0.5">정부 신청 페이지 SDK 한 줄 → 신청 시점 명의도용 실시간 차단 (Track A)</div></div>
+            </li>
+            <li class="flex gap-3">
+                <div class="flex-shrink-0 w-7 h-7 rounded-full bg-purple-500 text-white text-xs flex items-center justify-center font-bold">6</div>
+                <div><div class="font-semibold text-sm">시민 참여</div><div class="text-xs text-slate-400 mt-0.5">최소 증빙 신고 → 신뢰도 누적 → 의심도 보강 → 운영주체 우선점검 큐</div></div>
+            </li>
+        </ol>
+    </div>
+
+    <!-- ML 시나리오 -->
+    <div class="card">
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="chip chip-flat">시나리오 3 · ML 보조</span>
+            <h2 class="font-bold">새 사업장 위험도 예측 — Logistic Regression</h2>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <div class="text-xs text-slate-500 mb-2">입력: "Y건설(서울)"</div>
+                <table class="t text-xs">
+                    <thead><tr><th>특성</th><th class="text-right">값</th><th class="text-right">정규화</th></tr></thead>
+                    <tbody>
+                        <tr><td>업종</td><td class="text-right">건설업</td><td class="text-right mono">0.59</td></tr>
+                        <tr><td>지역</td><td class="text-right">서울</td><td class="text-right mono">0.71</td></tr>
+                        <tr><td>연도</td><td class="text-right">2024</td><td class="text-right mono">0.20</td></tr>
+                        <tr><td>NPS 손실률</td><td class="text-right">15%</td><td class="text-right mono">0.30</td></tr>
+                        <tr><td>체불 이력</td><td class="text-right">3회</td><td class="text-right mono">0.60</td></tr>
+                        <tr class="bg-rose-50"><td>♿ 의무고용 등록</td><td class="text-right">✓</td><td class="text-right mono">1.00</td></tr>
+                        <tr class="bg-rose-50"><td>♿ KEAD 활동 중첩</td><td class="text-right">0.4</td><td class="text-right mono">0.40</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <div class="bg-slate-900 text-emerald-300 font-mono text-xs p-3 rounded mb-3">
+z = w₁·x₁ + w₂·x₂ + ... + w₇·x₇<br>
+P = sigmoid(z) = 1 / (1 + e^(−z))<br><br>
+→ <b class="text-emerald-200">P(체불) = 0.85 → 점수 85/100</b>
+                </div>
+                <div class="text-xs text-slate-600">KEAD 결합 신호 가중치 +0.244/+0.334 — ML이 직접 학습한 결과</div>
+                <a href="/ml" class="text-xs text-indigo-700 underline mt-2 inline-block">▶ /ml 에서 가중치·K-fold CV 직접 확인</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 신고 신뢰도 누적 -->
+    <div class="card">
+        <div class="flex items-baseline gap-2 mb-3">
+            <span class="chip chip-med">시나리오 4 · 시민 신고</span>
+            <h2 class="font-bold">신고 누적 → 신뢰도 상승 → 의심도 반영</h2>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2 text-sm">
+                <div class="flex gap-2 items-start">
+                    <span class="chip chip-flat text-xs flex-shrink-0">신고 1</span>
+                    <span>신고인 A · 급여명세서 첨부 → 신뢰도 <b>30점</b></span>
+                </div>
+                <div class="flex gap-2 items-start">
+                    <span class="chip chip-flat text-xs flex-shrink-0">신고 2</span>
+                    <span>신고인 B (별도 인물) · 이체내역 첨부 → +30 = <b>60점</b></span>
+                </div>
+                <div class="flex gap-2 items-start">
+                    <span class="chip chip-med text-xs flex-shrink-0">신고 3</span>
+                    <span>14일 경과 → +15 = <b>75점</b> → 의심도 반영 시작</span>
+                </div>
+                <div class="flex gap-2 items-start">
+                    <span class="chip chip-high text-xs flex-shrink-0">신고 5</span>
+                    <span>누적 신뢰도 <b>105점</b> → 우선점검 큐 자동 진입</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-3 bg-slate-50 border border-slate-200 rounded p-2">
+                    <b>신뢰도 공식</b>: 신고인수 × 30 + 경과일 × 15 + (n−1) × 5<br>
+                    다수·장기·반복 신고일수록 신뢰도 급증
+                </div>
+                <div class="mt-2 flex gap-2 flex-wrap items-center">
+                    <a href="/verify?q=%28%EC%A3%BC%29%EC%84%BC%ED%8A%B8%EB%A1%A4"
+                       class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        ▶ LIVE 검증 — (주)센트롤 (신고 3건)
+                    </a>
+                    <a href="/reports" class="text-xs text-indigo-700 underline">→ 공개 신고 집계</a>
+                    <a href="/신고" class="text-xs text-rose-700 underline">→ 신고 접수</a>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 font-semibold mb-2">신뢰도·의심도 누적 추이</div>
+                <div id="chart-trust" style="height:200px;"></div>
+                <div class="text-xs text-slate-400 mt-1">점선: 우선점검 임계 (100점)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.tab-btn { transition: all .15s; }
+.tab-btn.active { background: white; color: #4338ca; border-bottom: 2px solid white; margin-bottom: -1px; font-weight: 700; }
+.tab-btn:not(.active) { background: #f8fafc; color: #64748b; border-bottom-color: transparent; }
+</style>
+
+<script>
+function switchTab(tab) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('pane-' + tab).classList.remove('hidden');
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'trackB' && !window._chartsB) { initChartsB(); initConvergenceChart(); window._chartsB = true; }
+    if (tab === 'trackA' && !window._chartsA) { initChartsA(); window._chartsA = true; }
+    if (tab === 'combined' && !window._chartsC) { initChartsC(); window._chartsC = true; }
+}
+
+function initChartsB() {
+    // NPS Z-score 시계열
+    const months = ['23-07','23-08','23-09','23-10','23-11','23-12',
+                    '24-01','24-02','24-03','24-04','24-05','24-06'];
+    const npsData = [142,139,141,138,132,121,108,95,82,71,65,58];
+    const zData   = [0.3,-0.1,0.2,-0.2,-0.8,-1.4,-2.0,-2.6,-3.1,-3.5,-3.8,-4.1];
+    const alertIdx = 6;
+
+    echarts.init(document.getElementById('chart-nps')).setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { data: ['가입자수','Z-score'], top: 0, textStyle: { fontSize: 10 } },
+        grid: { left: 44, right: 44, top: 32, bottom: 36 },
+        xAxis: { type: 'category', data: months, axisLabel: { fontSize: 9, rotate: 30 } },
+        yAxis: [
+            { type: 'value', name: '가입자', nameTextStyle: { fontSize: 9 }, axisLabel: { fontSize: 9 } },
+            { type: 'value', name: 'Z', nameTextStyle: { fontSize: 9 }, axisLabel: { fontSize: 9 }, min: -5, max: 1 }
+        ],
+        series: [
+            {
+                name: '가입자수', type: 'bar', yAxisIndex: 0, data: npsData,
+                itemStyle: { color: (p) => p.dataIndex >= alertIdx ? '#fca5a5' : '#a5b4fc' }
+            },
+            {
+                name: 'Z-score', type: 'line', yAxisIndex: 1, data: zData,
+                lineStyle: { color: '#ef4444', width: 2.5 }, symbol: 'circle', symbolSize: 5,
+                itemStyle: { color: '#ef4444' },
+                markLine: {
+                    silent: true,
+                    data: [{ yAxis: -2.0, lineStyle: { color: '#ef4444', type: 'dashed' },
+                             label: { formatter: '−2σ 임계', fontSize: 9, color: '#ef4444' } }]
+                }
+            }
+        ]
+    });
+
+    // ML feature importance — load from real model weights
+    fetch('/api/ml/info').then(r => r.json()).then(ml => {
+        const fi = (ml.feature_importance || []).slice(0, 8);
+        const names = fi.map(f => f.name.replace('근로지원중첩(KEAD)', 'KEAD근로지원').replace('의무고용(KEAD)', 'KEAD의무고용').replace('임금격차(NPS)', 'NPS임금격차').replace('NPS 이탈률', 'NPS이탈률').replace('타채널신고', '타신고'));
+        const vals  = fi.map(f => f.importance);
+        const isKead = fi.map(f => f.name.includes('KEAD'));
+        const isNps  = fi.map(f => f.name.includes('NPS'));
+        echarts.init(document.getElementById('chart-features')).setOption({
+            tooltip: { formatter: p => names[p.dataIndex] + ': ' + p.value.toFixed(3) },
+            grid: { left: 88, right: 50, top: 8, bottom: 8 },
+            xAxis: { type: 'value', axisLabel: { fontSize: 9 }, max: 1.05,
+                     axisLabel: { formatter: v => v.toFixed(1) } },
+            yAxis: { type: 'category', data: names.slice().reverse(), axisLabel: { fontSize: 9 } },
+            series: [{
+                type: 'bar', barMaxWidth: 14,
+                data: vals.slice().reverse(),
+                itemStyle: {
+                    color: (p) => {
+                        const origIdx = vals.length - 1 - p.dataIndex;
+                        if (isKead[origIdx]) return '#ef4444';
+                        if (isNps[origIdx]) return '#f59e0b';
+                        return '#94a3b8';
+                    }
+                },
+                label: { show: true, position: 'right', fontSize: 9, formatter: p => p.value.toFixed(3) }
+            }]
+        });
+    }).catch(() => {
+        // fallback hardcoded
+        echarts.init(document.getElementById('chart-features')).setOption({
+            tooltip: { trigger: 'item' },
+            grid: { left: 88, right: 50, top: 8, bottom: 8 },
+            xAxis: { type: 'value', max: 1.05 },
+            yAxis: { type: 'category', data: ['지역','업종','타신고','연도','NPS이탈률','NPS임금격차','KEAD의무고용','KEAD근로지원'] },
+            series: [{
+                type: 'bar', data: [0.165, 0.241, 0.116, 0.066, 0.247, 0.651, 0.613, 1.000],
+                itemStyle: { color: p => p.dataIndex >= 6 ? '#ef4444' : p.dataIndex >= 4 ? '#f59e0b' : '#94a3b8' },
+                label: { show: true, position: 'right', fontSize: 9 }
+            }]
+        });
+    });
+}
+
+function initChartsA() {
+    const signals = ['IP국가','timezone','WebRTC','WebGL','마우스jitter','키입력분산','기기FP','상실신고','체불명단'];
+    const vals    = [0, 15, 25, 15, 10, 10, 0, 0, 0];
+    const maxV    = 25;
+
+    echarts.init(document.getElementById('chart-radar')).setOption({
+        tooltip: {},
+        radar: {
+            indicator: signals.map(s => ({ name: s, max: maxV })),
+            shape: 'polygon', splitNumber: 4, radius: '65%',
+            axisName: { fontSize: 10, color: '#475569' },
+            splitLine: { lineStyle: { color: '#e2e8f0' } },
+            splitArea: { show: true, areaStyle: { color: ['#f8fafc','#f1f5f9','#f8fafc','#f1f5f9'] } }
+        },
+        series: [{
+            type: 'radar',
+            data: [{
+                value: vals, name: '이 케이스',
+                areaStyle: { color: 'rgba(239,68,68,0.18)' },
+                lineStyle: { color: '#ef4444', width: 2 },
+                itemStyle: { color: '#ef4444' },
+                symbol: 'circle', symbolSize: 6
+            }]
+        }]
+    });
+}
+
+function initChartsC() {
+    const labels  = ['신고1','신고2','신고3','신고4','신고5'];
+    const trust   = [30, 60, 80, 95, 105];
+    const suspicion = [52, 58, 63, 70, 79];
+
+    echarts.init(document.getElementById('chart-trust')).setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['신뢰도','의심도(반영)'], top: 0, textStyle: { fontSize: 10 } },
+        grid: { left: 36, right: 10, top: 28, bottom: 28 },
+        xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', max: 120, axisLabel: { fontSize: 10 } },
+        series: [
+            {
+                name: '신뢰도', type: 'line', data: trust,
+                lineStyle: { color: '#6366f1', width: 2.5 },
+                areaStyle: { color: 'rgba(99,102,241,0.1)' },
+                itemStyle: { color: '#6366f1' }, symbol: 'circle', symbolSize: 7,
+                markLine: {
+                    silent: true,
+                    data: [{ yAxis: 100, lineStyle: { color: '#ef4444', type: 'dashed' },
+                             label: { formatter: '우선점검↑', fontSize: 9, color: '#ef4444' } }]
+                }
+            },
+            {
+                name: '의심도(반영)', type: 'line', data: suspicion,
+                lineStyle: { color: '#f59e0b', width: 2 },
+                itemStyle: { color: '#f59e0b' }, symbol: 'circle', symbolSize: 6
+            }
+        ]
+    });
+}
+
+// 초기 탭 차트 로드
+initChartsB();
+initConvergenceChart();
+window._chartsB = true;
+
+function initConvergenceChart() {
+    const el = document.getElementById('chart-convergence');
+    if (!el || el._init) return;
+    el._init = true;
+    const months = ['T−6', 'T−5', 'T−4', 'T−3', 'T−2', 'T−1', 'T (체불 적발)'];
+    const dartRisk  = [10, 25, 35, 50, 70, 80, 95];
+    const npsZAbs   = [0,   5, 15, 30, 55, 75, 90];   // NPS Z-score 이상도 (0-100 변환)
+    const crossRisk = [0,   0,  0, 20, 40, 65, 80];   // 4대보험 삼각검증 위험도
+    const combined  = dartRisk.map((v, i) => Math.round(Math.max(v, npsZAbs[i], crossRisk[i]) * 0.4 +
+        ((dartRisk[i] + npsZAbs[i] + crossRisk[i]) / 3) * 0.6));
+
+    echarts.init(el).setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['DART 재무위험', 'NPS Z-score 이상도', '4대보험 불일치', '교차 의심도'],
+            bottom: 0, textStyle: { fontSize: 10 } },
+        grid: { left: 36, right: 12, top: 16, bottom: 50 },
+        xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', max: 100, axisLabel: { fontSize: 10, formatter: '{value}' } },
+        series: [
+            { name: 'DART 재무위험', type: 'line', data: dartRisk,
+              lineStyle: { color: '#a855f7', width: 2 }, symbol: 'circle', symbolSize: 5,
+              itemStyle: { color: '#a855f7' } },
+            { name: 'NPS Z-score 이상도', type: 'line', data: npsZAbs,
+              lineStyle: { color: '#6366f1', width: 2 }, symbol: 'circle', symbolSize: 5,
+              itemStyle: { color: '#6366f1' } },
+            { name: '4대보험 불일치', type: 'line', data: crossRisk,
+              lineStyle: { color: '#f59e0b', width: 2 }, symbol: 'circle', symbolSize: 5,
+              itemStyle: { color: '#f59e0b' } },
+            { name: '교차 의심도', type: 'line', data: combined,
+              lineStyle: { color: '#e11d48', width: 3 }, symbol: 'circle', symbolSize: 6,
+              itemStyle: { color: '#e11d48' },
+              areaStyle: { color: 'rgba(225,29,72,0.08)' },
+              markLine: { silent: true, data: [{ xAxis: 6,
+                  label: { formatter: '체불 적발', color: '#e11d48', fontSize: 10 },
+                  lineStyle: { color: '#e11d48', type: 'dashed' } }] } },
+        ],
+    });
+}
+</script>
+{% endblock %}

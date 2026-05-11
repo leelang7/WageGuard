@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}AI 일자리 매칭{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">🎯 Match — 장애인 맞춤 일자리 AI 매칭</h1>
+            <span class="chip chip-low">코어 ①</span>
+            <span class="chip chip-flat">주관기관 데이터 결합</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            장애 유형·능력·관심을 입력하면 AI가 적합한 직무·직업훈련·근로지원인을 한 번에 추천합니다.
+            워크넷 채용·직무사전 + KEAD 근로지원인 + 체불사업주 필터를 결합한 정직한 매칭.
+        </p>
+    </header>
+
+    <!-- 매칭 입력 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">내 프로필 입력</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div>
+                <label class="text-xs text-slate-500 block mb-1">장애 유형</label>
+                <select id="d-type" class="input w-full">
+                    <option value="지체">지체</option>
+                    <option value="시각">시각</option>
+                    <option value="청각">청각</option>
+                    <option value="발달">발달</option>
+                </select>
+                <label class="text-xs text-slate-500 block mt-3 mb-1">중증/경증</label>
+                <select id="severity" class="input w-full">
+                    <option value="경증">경증</option>
+                    <option value="중증">중증</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-slate-500 block mb-1">관심 키워드 (예: 조용한 사무실 컴퓨터)</label>
+                <input id="interests" class="input w-full" value="조용한 사무실 컴퓨터 정착" />
+                <label class="text-xs text-slate-500 block mt-3 mb-1">경력·능력 키워드</label>
+                <input id="experience" class="input w-full" value="엑셀 워드 컴퓨터 정확" />
+            </div>
+        </div>
+        <button onclick="recommend()" class="btn-primary mt-4">🎯 AI 매칭 실행</button>
+        <div id="recommend-result" class="mt-4"></div>
+    </div>
+
+    <!-- 사업주 매칭 -->
+    <div class="card border-amber-200 bg-amber-50/30">
+        <h2 class="text-lg font-bold mb-3">🏢 사업주 측 — 의무고용 부담금 회피 도우미</h2>
+        <p class="text-xs text-slate-600 mb-3">의무고용율 3.1% 미달 사업장 자동 식별 → 적합 장애인 인재 풀 추천. 부담금 회피 → 실고용 전환.</p>
+        <div id="employer-result" class="text-sm text-slate-500">로드 중…</div>
+    </div>
+
+    <!-- 직업훈련 패스 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">🎓 직업훈련 → 일자리 패스 (한국고용정보원 직업훈련 결합)</h2>
+        <div id="training-result" class="text-sm text-slate-500">로드 중…</div>
+    </div>
+
+    <!-- 데이터·AI 명시 -->
+    <div class="card bg-slate-50">
+        <h2 class="text-lg font-bold mb-2">데이터·AI 활용 명시</h2>
+        <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+            <li><b>한국고용정보원</b>: 워크넷 채용(3038225) + 직업(3071087) + 직무사전(15088880) + 직업훈련(15037380) — <b>주관기관 +2</b></li>
+            <li><b>한국장애인고용공단</b>: 근로지원인 구인(15149876) + 수행기관(15131282) — <b>주관기관 +2</b></li>
+            <li><b>체불사업주 명단</b>: 정직 사업장 자동 필터 — 추천 결과에서 체불 회사 제외</li>
+            <li><b>AI</b>: TF-IDF 임베딩 + 코사인 유사도 + 장애 유형 일치 가중치</li>
+        </ul>
+    </div>
+
+</section>
+
+<script>
+async function recommend() {
+    const payload = {
+        disability_type: document.getElementById('d-type').value,
+        severity: document.getElementById('severity').value,
+        interests: document.getElementById('interests').value,
+        experience: document.getElementById('experience').value,
+        top_n: 5,
+    };
+    const r = await fetch('/api/match/recommend', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!d.available) {
+        document.getElementById('recommend-result').innerHTML =
+            `<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">${d.reason}</div>`;
+        return;
+    }
+    let html = `<div class="text-xs text-slate-500 mb-2">${d.method}</div>
+        <div class="space-y-2">`;
+    d.results.forEach((r, i) => {
+        const color = r.match_score >= 60 ? 'emerald' : r.match_score >= 40 ? 'amber' : 'slate';
+        html += `
+            <div class="bg-white border border-${color}-200 rounded-xl p-4 flex items-center gap-4">
+                <div class="text-3xl font-extrabold mono text-${color}-700 w-20 text-center">
+                    ${r.match_score}
+                    <div class="text-[10px] text-slate-400 font-normal">/100</div>
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-slate-900">${i+1}. ${r.job_name}</div>
+                    <div class="text-xs text-slate-600 mt-1">적합 장애 유형: ${r.suitable_disability_types.join(', ')}</div>
+                    <div class="text-xs text-slate-600">권장 자격: ${r.recommended_certificate} · 평균 임금 ${r.avg_monthly_wage_kwon10000}만원</div>
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+    html += `<div class="mt-3 text-xs text-slate-500">AI: ${d.ai_method.join(' · ')}</div>`;
+    document.getElementById('recommend-result').innerHTML = html;
+}
+
+async function loadEmployer() {
+    try {
+        const r = await fetch('/api/match/employer-mismatch');
+        const d = await r.json();
+        let html = `<div class="text-xs text-slate-500 mb-2">${d.context}</div>
+            <table class="t"><thead><tr><th>사업장</th><th class="text-right">부족</th><th class="text-right">연 부담금</th><th>추천 직무</th><th class="text-right">인재 풀</th></tr></thead><tbody>`;
+        d.scenario.forEach(s => {
+            html += `<tr>
+                <td><b>${s.business}</b><div class="text-xs text-slate-500">현 ${s.current_disability_employees}명 / 의무 ${s.required_minimum}명</div></td>
+                <td class="text-right mono text-rose-700">${s.shortage}명</td>
+                <td class="text-right mono">${s.annual_penalty_kwon10000.toLocaleString()}만원</td>
+                <td class="text-xs">${s.suggested_jobs.join(', ')}</td>
+                <td class="text-right mono text-emerald-700">${s.matched_candidate_pool_size}명</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        html += `<div class="text-xs text-emerald-700 mt-3"><b>${d.incentive}</b></div>`;
+        document.getElementById('employer-result').innerHTML = html;
+    } catch (e) {
+        document.getElementById('employer-result').textContent = '오류';
+    }
+}
+
+async function loadTraining() {
+    try {
+        const r = await fetch('/api/match/training-paths');
+        const d = await r.json();
+        let html = `<div class="text-xs text-slate-500 mb-2">데이터: ${d.data_source}</div>
+            <div class="grid md:grid-cols-3 gap-3">`;
+        d.paths.forEach(p => {
+            html += `<div class="bg-white border rounded-xl p-3">
+                <div class="font-bold text-sm">${p.training_course}</div>
+                <div class="text-xs text-slate-500 mt-1">${p.duration_weeks}주 · ${p.typical_certificate}</div>
+                <div class="text-xs text-slate-700 mt-2">→ ${p.leads_to_jobs.join(', ')}</div>
+            </div>`;
+        });
+        html += '</div>';
+        html += `<div class="text-xs text-slate-400 mt-2">${d.note}</div>`;
+        document.getElementById('training-result').innerHTML = html;
+    } catch (e) {
+        document.getElementById('training-result').textContent = '오류';
+    }
+}
+
+loadEmployer();
+loadTraining();
+</script>
+{% endblock %}

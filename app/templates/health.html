@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}데이터 신뢰성{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-4">데이터 신뢰성 · API 호출 통계</h1>
+
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="stat-card">
+        <div class="text-xs text-slate-500">검증된 데이터 소스</div>
+        <div class="text-3xl font-bold mt-1" id="health-sources">…</div>
+    </div>
+    <div class="stat-card">
+        <div class="text-xs text-slate-500">최근 24h API 호출</div>
+        <div class="text-3xl font-bold mt-1" id="health-calls">…</div>
+    </div>
+    <div class="stat-card">
+        <div class="text-xs text-slate-500">성공률</div>
+        <div class="text-3xl font-bold mt-1" id="health-success">…</div>
+    </div>
+</section>
+
+<section class="stat-card mb-6">
+    <h2 class="font-semibold mb-3">검증된 API 카탈로그</h2>
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">API</th>
+                <th class="py-2">제공기관</th>
+                <th class="py-2">엔드포인트</th>
+                <th class="py-2">상태</th>
+            </tr>
+        </thead>
+        <tbody id="health-catalog"></tbody>
+    </table>
+</section>
+
+<section class="stat-card">
+    <h2 class="font-semibold mb-3">최근 호출 로그 (최신 30건)</h2>
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">시각</th>
+                <th class="py-2">API</th>
+                <th class="py-2">엔드포인트</th>
+                <th class="py-2 text-right">소요 (ms)</th>
+                <th class="py-2 text-right">상태</th>
+            </tr>
+        </thead>
+        <tbody id="health-logs"></tbody>
+    </table>
+</section>
+
+<script>
+async function loadHealth() {
+    const r = await fetch('/api/health').then(r => r.json());
+    document.getElementById('health-sources').textContent = r.sources.length;
+    document.getElementById('health-calls').textContent = r.recent_24h;
+    document.getElementById('health-success').textContent = r.success_pct.toFixed(1) + '%';
+
+    document.getElementById('health-catalog').innerHTML = r.sources.map(s => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2">${s.name}</td>
+            <td class="py-2">${s.org}</td>
+            <td class="py-2 font-mono text-xs">${s.endpoint}</td>
+            <td class="py-2"><span class="px-2 py-0.5 rounded text-xs
+                ${s.status === '정상' ? 'bg-emerald-100 text-emerald-700' :
+                  s.status === '대기' ? 'bg-amber-100 text-amber-700' :
+                                         'bg-slate-100 text-slate-600'}">${s.status}</span></td>
+        </tr>
+    `).join('');
+
+    document.getElementById('health-logs').innerHTML = r.logs.map(l => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2 font-mono text-xs">${l.called_at}</td>
+            <td class="py-2">${l.api}</td>
+            <td class="py-2 font-mono text-xs truncate max-w-md">${l.endpoint}</td>
+            <td class="py-2 text-right font-mono">${l.duration_ms}</td>
+            <td class="py-2 text-right">
+                <span class="${l.ok ? 'text-emerald-600' : 'text-red-600'}">${l.status}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+loadHealth();
+</script>
+{% endblock %}

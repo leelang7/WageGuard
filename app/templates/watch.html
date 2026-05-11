@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}워치리스트{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-1">관심 사업장 (자동 모니터링)</h1>
+<p class="text-sm text-slate-600 mb-6">사업장을 등록해 두면 주기 NTS 재조회 + 체불 명단 매칭으로 <span class="font-semibold">상태 변화 시 자동 이벤트</span>를 기록합니다.</p>
+
+<section class="stat-card mb-6">
+    <h2 class="font-semibold mb-3">새 사업장 등록</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <input id="w-label" placeholder="별칭 (예: 우리 회사)" class="border rounded px-3 py-2 text-sm" />
+        <input id="w-bno" maxlength="10" placeholder="사업자번호 (선택)" class="border rounded px-3 py-2 text-sm font-mono" />
+        <input id="w-name" placeholder="사업장명 일부 (선택)" class="border rounded px-3 py-2 text-sm" />
+        <button onclick="addWatch()" class="bg-slate-900 text-white px-3 py-2 rounded text-sm">등록 + 즉시 진단</button>
+    </div>
+    <div class="text-xs text-slate-500 mt-2">사업자번호와 사업장명 둘 중 하나 필수. 사업장명은 체불 명단 검색에 사용.</div>
+</section>
+
+<section class="stat-card">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">등록 사업장</h2>
+        <button onclick="refreshAll()" class="text-xs px-3 py-1.5 border rounded hover:bg-slate-50">전체 재조회</button>
+    </div>
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">별칭</th>
+                <th class="py-2">사업자번호</th>
+                <th class="py-2">사업장명 검색어</th>
+                <th class="py-2">최신 상태</th>
+                <th class="py-2">위험점수</th>
+                <th class="py-2">최근 이벤트</th>
+                <th class="py-2 text-right">액션</th>
+            </tr>
+        </thead>
+        <tbody id="w-rows"><tr><td colspan="7" class="py-4 text-center text-slate-400">로드 중…</td></tr></tbody>
+    </table>
+</section>
+
+<script>
+function fmtScore(s) {
+    if (s == null) return '-';
+    const cls = s >= 70 ? 'bg-rose-100 text-rose-700' : s >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+    return `<span class="px-2 py-0.5 rounded text-xs font-semibold ${cls}">${s}</span>`;
+}
+
+function fmtEv(e) {
+    if (!e) return '<span class="text-slate-400">-</span>';
+    const tag = { registered: '등록', status_change: '상태변화', score_jump: '점수급변' }[e.event_type] || e.event_type;
+    return `<span class="text-xs text-slate-700">${tag}</span> <span class="text-xs text-slate-400">${e.created_at?.slice(11, 16) || ''}</span>`;
+}
+
+async function load() {
+    const list = await fetch('/api/watch').then(r => r.json());
+    const tbody = document.getElementById('w-rows');
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">등록된 사업장이 없습니다. 위에서 등록해 보세요.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(w => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2 font-medium">${w.label || '-'}</td>
+            <td class="py-2 font-mono text-xs">${w.bno || '-'}</td>
+            <td class="py-2">${w.company_query || '-'}</td>
+            <td class="py-2"><span class="text-xs px-2 py-0.5 rounded bg-slate-100">${w.last_status || '-'}</span></td>
+            <td class="py-2">${fmtScore(w.last_score)}</td>
+            <td class="py-2">${fmtEv(w.events?.[0])}</td>
+            <td class="py-2 text-right">
+                <button onclick="refresh(${w.id})" class="text-xs px-2 py-1 border rounded mr-1 hover:bg-slate-50">재조회</button>
+                <button onclick="remove(${w.id})" class="text-xs px-2 py-1 border rounded text-rose-600 hover:bg-rose-50">삭제</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function addWatch() {
+    const label = document.getElementById('w-label').value.trim();
+    const bno = document.getElementById('w-bno').value.trim();
+    const name = document.getElementById('w-name').value.trim();
+    if (!label) { alert('별칭 입력'); return; }
+    if (!bno && !name) { alert('사업자번호 또는 사업장명 중 하나 필수'); return; }
+    if (bno && !/^\d{10}$/.test(bno)) { alert('사업자번호는 10자리'); return; }
+    const r = await fetch('/api/watch', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({label, bno: bno || null, company_query: name || null}),
+    }).then(r => r.json());
+    document.getElementById('w-label').value = '';
+    document.getElementById('w-bno').value = '';
+    document.getElementById('w-name').value = '';
+    load();
+}
+
+async function refresh(id) {
+    await fetch(`/api/watch/${id}/refresh`, {method: 'POST'});
+    load();
+}
+async function refreshAll() {
+    await fetch('/api/watch/refresh-all', {method: 'POST'});
+    load();
+}
+async function remove(id) {
+    if (!confirm('삭제하시겠습니까?')) return;
+    await fetch(`/api/watch/${id}`, {method: 'DELETE'});
+    load();
+}
+
+load();
+</script>
+{% endblock %}

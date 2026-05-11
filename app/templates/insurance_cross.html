@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}4대보험 삼각검증{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <div class="flex items-baseline gap-2 flex-wrap">
+        <h1 class="text-xl font-bold">🔗 4대보험 삼각검증</h1>
+        <span class="chip chip-high">위장고용 탐지</span>
+    </div>
+    <p class="text-sm text-slate-600 mt-1">
+        <b>국민연금(NPS) × 건강보험(NHIS) × 채용공고</b>를 교차해
+        가입자 수 불일치·이직률 이상·유령 사업장을 탐지합니다.
+        여러 소스가 일치하지 않을수록 위장고용·4대보험 조작 의심도가 높아집니다.
+    </p>
+</div>
+
+<section class="card mb-4 border-l-4 border-rose-500">
+    <h2 class="font-semibold mb-3">🔍 사업장 삼각검증</h2>
+    <div class="flex gap-2 flex-wrap">
+        <input id="cross-company" type="text" placeholder="사업장명 입력" class="input flex-1 min-w-[180px]" />
+        <button onclick="runCross()" class="btn-primary">검증</button>
+        <button onclick="runDemo()" class="btn-ghost btn-sm">🧪 체불사업장 시뮬</button>
+        <button onclick="setCross('한국물류센터')" class="btn-ghost btn-sm">한국물류센터</button>
+        <button onclick="setCross('JS건설')" class="btn-ghost btn-sm">JS건설</button>
+    </div>
+    <div id="cross-result" class="mt-4 text-sm text-slate-500">사업장명을 입력하거나 시뮬레이션을 클릭하세요.</div>
+</section>
+
+<section class="card mb-4 border-l-4 border-indigo-500">
+    <h2 class="font-semibold mb-3">🧠 삼각검증 불일치 패턴</h2>
+    <div class="grid md:grid-cols-2 gap-3 text-sm">
+        <div class="bg-rose-50 border border-rose-200 rounded p-3">
+            <div class="font-semibold text-rose-700">NPS vs 건보 2배↑ 불일치</div>
+            <div class="text-xs text-slate-600 mt-1">국민연금은 납부하면서 건강보험은 미가입 → 4대보험 선별 조작 의심.</div>
+        </div>
+        <div class="bg-orange-50 border border-orange-200 rounded p-3">
+            <div class="font-semibold text-orange-700">NPS 있는데 건보 0</div>
+            <div class="text-xs text-slate-600 mt-1">비정규직 위장 또는 허위 피보험자 등록 패턴.</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded p-3">
+            <div class="font-semibold text-amber-700">이직률 30%↑</div>
+            <div class="text-xs text-slate-600 mt-1">가입자 대비 상실자 비율 이상 → 임금체불 사전 신호.</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-3">
+            <div class="font-semibold text-slate-700">전체 소스 0</div>
+            <div class="text-xs text-slate-600 mt-1">사업자 등록은 됐으나 4대보험 전무 → 유령 사업장 가능성.</div>
+        </div>
+    </div>
+</section>
+
+<section class="card mb-4">
+    <h2 class="font-semibold mb-2">🔗 연결된 데이터소스</h2>
+    <div id="cross-catalog" class="text-sm text-slate-500">로드 중…</div>
+</section>
+
+<script>
+function setCross(name) {
+    document.getElementById('cross-company').value = name;
+    runCross();
+}
+
+async function runDemo() {
+    const company = document.getElementById('cross-company').value.trim();
+    document.getElementById('cross-result').innerHTML = '<div class="text-slate-400">시뮬레이션 로드 중…</div>';
+    const url = company
+        ? `/api/insurance-cross/demo?company=${encodeURIComponent(company)}`
+        : '/api/insurance-cross/demo';
+    const r = await fetch(url).then(r => r.json()).catch(e => ({ available: false, reason: e.message }));
+    renderCrossResult(r);
+}
+
+async function runCross() {
+    const company = document.getElementById('cross-company').value.trim();
+    if (!company) { runDemo(); return; }
+    document.getElementById('cross-result').innerHTML = '<div class="text-slate-400">검증 중…</div>';
+    let r;
+    try {
+        r = await fetch(`/api/insurance-cross/scan?company=${encodeURIComponent(company)}`).then(r => r.json());
+    } catch (e) {
+        document.getElementById('cross-result').innerHTML =
+            `<div class="text-rose-700 bg-rose-50 border border-rose-200 rounded p-3">네트워크 오류: ${e.message || e}</div>`;
+        return;
+    }
+    if (!r.available) {
+        // fallback to demo
+        const demoUrl = `/api/insurance-cross/demo?company=${encodeURIComponent(company)}`;
+        const demo = await fetch(demoUrl).then(r => r.json()).catch(() => null);
+        if (demo && demo.available) { renderCrossResult(demo); return; }
+        document.getElementById('cross-result').innerHTML =
+            `<div class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                <b>실제 데이터 없음:</b> ${r.reason || ''}
+                ${r.sources_detail ? `<div class="text-xs mt-2">NPS=${r.sources_detail.nps}, NHIS=${r.sources_detail.nhis}, 채용=${r.sources_detail.jobs}</div>` : ''}
+            </div>`;
+        return;
+    }
+    renderCrossResult(r);
+}
+
+function renderCrossResult(r) {
+    const score = r.cross_score ?? r.risk_score ?? 0;
+    const scoreColor = score >= 70 ? 'text-red-400' : score >= 40 ? 'text-amber-400' : 'text-emerald-400';
+    const tierLabel = score >= 70 ? '⚠ 고위험 — 점검 권고' : score >= 40 ? '주의 관찰' : '정상 범위';
+    const src = r.sources || {};
+    const npsN = src.nps?.subscribers ?? r.nps_subscribers ?? 'N/A';
+    const nhisN = src.nhis?.subscribers ?? r.nhis_subscribers ?? 'N/A';
+    const lossRate = src.nps?.loss_rate ?? r.loss_rate_pct ?? 'N/A';
+    const jobCnt = r.job_postings ?? src.job_postings ?? 'N/A';
+
+    const demoBanner = r.is_simulation ? `
+        <div class="col-span-3 bg-indigo-50 border border-indigo-200 rounded p-3 text-xs text-indigo-800 mb-3">
+            <b>시뮬레이션 모드</b> — ${r.sim_note || '실제 API 미연결, 체불사업장 기반 합성 데이터'}
+            ${r.amount_wan ? ` | 체불액 ${(r.amount_wan/10000).toFixed(0)}만원` : ''}
+        </div>` : '';
+
+    document.getElementById('cross-result').innerHTML = `
+        <div class="grid md:grid-cols-3 gap-4">
+            ${demoBanner}
+            <div class="text-center bg-slate-900 text-white rounded-xl p-4">
+                <div class="text-xs opacity-60 mb-1">${r.company || ''}</div>
+                <div class="text-5xl font-extrabold mono ${scoreColor}">${score}</div>
+                <div class="text-xs mt-1 opacity-70">/100 삼각검증 위험도</div>
+                <div class="text-xs mt-2 ${score >= 70 ? 'text-rose-300' : score >= 40 ? 'text-amber-300' : 'text-emerald-300'}">${tierLabel}</div>
+            </div>
+            <div class="col-span-2">
+                <div class="text-xs text-slate-500 mb-2">소스별 데이터</div>
+                <table class="t text-xs w-full mb-3">
+                    <tbody>
+                        <tr><td>NPS 가입자</td><td class="mono font-bold">${npsN}명</td></tr>
+                        <tr><td>NPS 상실률</td><td class="mono">${lossRate}%</td></tr>
+                        <tr><td>건보 직장가입자</td><td class="mono">${nhisN}명</td></tr>
+                        <tr><td>채용공고</td><td class="mono">${jobCnt}건</td></tr>
+                    </tbody>
+                </table>
+                ${(r.signals || []).length ? `
+                <div class="text-xs text-slate-500 mb-1">탐지된 불일치 신호</div>
+                ${r.signals.map(s => `
+                    <div class="border rounded p-2 mb-1 ${s.severity === 'HIGH' || s.severity === 'high' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'} text-xs">
+                        ${s.label}
+                    </div>`).join('')}
+                ` : '<div class="text-emerald-700 text-xs">탐지된 불일치 신호 없음</div>'}
+            </div>
+        </div>
+    `;
+}
+
+async function loadCatalog() {
+    const r = await fetch('/api/insurance-cross/catalog').then(r => r.json());
+    document.getElementById('cross-catalog').innerHTML = `
+        <div class="grid md:grid-cols-3 gap-2 text-xs">
+            ${(r.sources || []).map(s => `
+            <div class="border rounded p-2">
+                <div class="font-semibold">${s.name}</div>
+                <div class="text-slate-500">${s.id}</div>
+                <div class="text-slate-400">키: ${s.key}</div>
+            </div>`).join('')}
+        </div>
+        <div class="mt-2 text-xs text-slate-500">
+            ${(r.detection_patterns || []).map(p => `<div>· ${p}</div>`).join('')}
+        </div>
+    `;
+}
+loadCatalog();
+
+document.getElementById('cross-company').addEventListener('keydown', e => { if (e.key === 'Enter') runCross(); });
+</script>
+{% endblock %}

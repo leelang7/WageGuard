@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+{% block title %}사업장 진단{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-1">사업장 진단</h1>
+<p class="text-sm text-slate-600 mb-6">사업장명 또는 사업자번호로 종합 위험을 진단합니다. 체불 명단·동일 대표자 그래프·업종/지역 위험·국세청 상태를 결합한 행동 가이드를 제공합니다.</p>
+
+<div class="stat-card mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="text-xs text-slate-500 mb-1 block">사업장명 검색 (체불 명단·셀 위험·대표자 그래프)</label>
+            <div class="flex gap-2">
+                <input id="name-input" type="text" placeholder="예: 세이프티팜"
+                       class="border rounded px-3 py-2 flex-1" onkeydown="if(event.key==='Enter')diagnose()" />
+                <button onclick="diagnose()" class="bg-slate-900 text-white px-4 py-2 rounded text-sm">진단</button>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+                샘플:
+                <button class="text-blue-600 underline" onclick="setQ('세이프티팜')">세이프티팜</button>
+                <button class="text-blue-600 underline ml-1" onclick="setQ('더블유엠디')">더블유엠디</button>
+                <button class="text-blue-600 underline ml-1" onclick="setQ('승화중공업')">승화중공업</button>
+                <button class="text-blue-600 underline ml-1" onclick="setQ('건설')">건설</button>
+            </div>
+        </div>
+        <div>
+            <label class="text-xs text-slate-500 mb-1 block">사업자번호 (국세청 상태조회)</label>
+            <div class="flex gap-2">
+                <input id="bno-input" type="text" maxlength="10" placeholder="1248100998"
+                       class="border rounded px-3 py-2 w-48 font-mono"
+                       onkeydown="if(event.key==='Enter')lookupBno()" />
+                <button onclick="lookupBno()" class="bg-slate-700 text-white px-4 py-2 rounded text-sm">조회</button>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+                샘플:
+                <button class="text-blue-600 underline" onclick="setBno('1248100998')">1248100998 삼성</button>
+                <button class="text-blue-600 underline ml-1" onclick="setBno('1018109147')">현대차</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="result" class="hidden">
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="stat-card">
+            <h2 class="font-semibold mb-2">종합 위험점수</h2>
+            <div class="text-center py-4">
+                <div class="text-7xl font-bold" id="risk-score">0</div>
+                <div class="mt-2 text-sm" id="risk-level"></div>
+            </div>
+        </div>
+        <div class="stat-card lg:col-span-2">
+            <h2 class="font-semibold mb-3">신호 분해</h2>
+            <div id="risk-bars"></div>
+        </div>
+    </section>
+
+    <section id="hits-section" class="stat-card mb-6 hidden">
+        <h2 class="font-semibold mb-3">⚠ 체불사업주 명단 직접 매칭 <span id="hits-count" class="text-xs ml-2 text-rose-600"></span></h2>
+        <table class="w-full text-sm">
+            <thead class="text-slate-500 text-left">
+                <tr>
+                    <th class="py-2">차수</th>
+                    <th class="py-2">사업장</th>
+                    <th class="py-2">대표</th>
+                    <th class="py-2">업종</th>
+                    <th class="py-2">지역</th>
+                    <th class="py-2 text-right">체불액</th>
+                </tr>
+            </thead>
+            <tbody id="hits-rows"></tbody>
+        </table>
+    </section>
+
+    <section id="related-section" class="stat-card mb-6 hidden">
+        <h2 class="font-semibold mb-3">🔗 동일 대표자가 운영한 다른 사업장 <span id="related-count" class="text-xs ml-2 text-amber-600"></span></h2>
+        <table class="w-full text-sm">
+            <thead class="text-slate-500 text-left">
+                <tr>
+                    <th class="py-2">대표자</th>
+                    <th class="py-2">차수</th>
+                    <th class="py-2">사업장</th>
+                    <th class="py-2 text-right">체불액</th>
+                </tr>
+            </thead>
+            <tbody id="related-rows"></tbody>
+        </table>
+    </section>
+
+    <section id="cell-section" class="stat-card mb-6 hidden">
+        <h2 class="font-semibold mb-3">📊 업종 × 지역 셀 위험도</h2>
+        <div id="cell-info" class="text-sm"></div>
+    </section>
+
+    <section id="nps-section" class="stat-card mb-6 hidden border-l-4 border-indigo-500">
+        <h2 class="font-semibold mb-3 flex items-center justify-between">
+            <span>🏛 국민연금 가입사업장 — <b>권위 데이터</b></span>
+            <span id="nps-meta" class="text-xs text-slate-500"></span>
+        </h2>
+        <div id="nps-body"></div>
+    </section>
+
+    <section id="ext-section" class="stat-card mb-6 hidden">
+        <h2 class="font-semibold mb-3 flex items-center justify-between">
+            <span>🌐 외부 검색 신호 (네이버 뉴스·블로그·카페·지식인)</span>
+            <span id="ext-meta" class="text-xs text-slate-500"></span>
+        </h2>
+        <div id="ext-summary" class="grid grid-cols-4 gap-3 mb-3 text-center text-sm"></div>
+        <div id="ext-findings" class="space-y-2"></div>
+    </section>
+
+    <section id="place-section" class="stat-card mb-6 hidden">
+        <h2 class="font-semibold mb-3 flex items-center justify-between">
+            <span>📍 장소 정보 + 리뷰 (네이버 지역검색 + 구글 Places)</span>
+            <span id="place-meta" class="text-xs text-slate-500"></span>
+        </h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+                <div class="text-xs text-slate-500 mb-2">네이버 지역 매칭</div>
+                <div id="naver-local" class="space-y-2"></div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 mb-2">구글 Places · 평점/리뷰</div>
+                <div id="google-place"></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="nts-section" class="stat-card mb-6 hidden">
+        <h2 class="font-semibold mb-3">🏛 국세청 사업자상태</h2>
+        <dl class="grid grid-cols-3 gap-2 text-sm" id="nts-fields"></dl>
+    </section>
+
+    <section id="guide-section" class="stat-card">
+        <h2 class="font-semibold mb-3">🎯 행동 가이드 <span id="guide-level" class="text-sm ml-2"></span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="guide-cards"></div>
+    </section>
+</div>
+
+<script>
+function setQ(v) { document.getElementById('name-input').value = v; diagnose(); }
+function setBno(v) { document.getElementById('bno-input').value = v; lookupBno(); }
+
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+function renderRisk(risk, level) {
+    const s = document.getElementById('risk-score');
+    s.textContent = risk.score;
+    s.className = `text-7xl font-bold ${risk.score >= 70 ? 'text-rose-600' : risk.score >= 40 ? 'text-amber-600' : 'text-emerald-600'}`;
+    document.getElementById('risk-level').textContent = level;
+
+    document.getElementById('risk-bars').innerHTML = (risk.factors || []).map(f => `
+        <div class="mb-2">
+            <div class="flex justify-between text-sm">
+                <span>${f.label}</span><span class="font-mono">+${f.points}</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded">
+                <div class="h-2 rounded" style="width:${Math.min(100, f.points * 1.2)}%; background:${f.color}"></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderGuide(guide) {
+    if (!guide) { hide('guide-section'); return; }
+    show('guide-section');
+    document.getElementById('guide-level').textContent = guide.label;
+    const cards = [
+        { who: '근로자', items: guide.worker, color: 'bg-rose-50 border-rose-200' },
+        { who: '근로감독관', items: guide.supervisor, color: 'bg-amber-50 border-amber-200' },
+        { who: '사업주', items: guide.owner, color: 'bg-blue-50 border-blue-200' },
+    ];
+    document.getElementById('guide-cards').innerHTML = cards.map(c => `
+        <div class="border rounded p-3 ${c.color}">
+            <div class="font-semibold mb-2">${c.who}</div>
+            ${c.items?.length
+                ? '<ul class="list-disc list-inside text-sm space-y-1">' + c.items.map(i => `<li>${i}</li>`).join('') + '</ul>'
+                : '<div class="text-xs text-slate-500">권고 사항 없음</div>'}
+        </div>
+    `).join('');
+}
+
+async function diagnose() {
+    const q = document.getElementById('name-input').value.trim();
+    if (q.length < 2) { alert('2자 이상 입력'); return; }
+    show('result');
+    hide('nts-section');
+
+    const r = await fetch(`/api/business?q=${encodeURIComponent(q)}`).then(r => r.json());
+
+    renderRisk(r.risk || { score: 0, factors: [] }, r.guide?.label || '');
+
+    // 명단 매칭
+    if (r.hits?.length) {
+        show('hits-section');
+        document.getElementById('hits-count').textContent = `${r.hits.length}건 발견`;
+        document.getElementById('hits-rows').innerHTML = r.hits.map(h => `
+            <tr class="border-t border-slate-100">
+                <td class="py-2">${h.round}</td>
+                <td class="py-2 font-semibold">${h.company}</td>
+                <td class="py-2">${h.name}(${h.age}세)</td>
+                <td class="py-2">${h.industry}</td>
+                <td class="py-2">${h.region}</td>
+                <td class="py-2 text-right">${fmtKRWFull(h.amount)}</td>
+            </tr>
+        `).join('');
+    } else hide('hits-section');
+
+    // 관련 사업장
+    if (r.related?.length) {
+        show('related-section');
+        document.getElementById('related-count').textContent = `${r.related.length}건`;
+        document.getElementById('related-rows').innerHTML = r.related.map(x => `
+            <tr class="border-t border-slate-100">
+                <td class="py-2">${x.operator}</td>
+                <td class="py-2">${x.round}</td>
+                <td class="py-2">${x.company}</td>
+                <td class="py-2 text-right">${fmtKRWFull(x.amount)}</td>
+            </tr>
+        `).join('');
+    } else hide('related-section');
+
+    // 셀 위험도
+    if (r.cell) {
+        show('cell-section');
+        document.getElementById('cell-info').innerHTML = `
+            <div class="grid grid-cols-4 gap-3 text-center">
+                <div><div class="text-xs text-slate-500">셀</div><div class="font-semibold">${r.cell.industry}<br>${r.cell.region}</div></div>
+                <div><div class="text-xs text-slate-500">위험점수</div><div class="text-2xl font-bold">${r.cell.risk_score}</div></div>
+                <div><div class="text-xs text-slate-500">셀 내 체불 건수</div><div class="text-2xl font-bold">${r.cell.count}</div></div>
+                <div><div class="text-xs text-slate-500">평균 체불액</div><div class="font-semibold">${fmtKRW(r.cell.avg_amt)}원</div></div>
+            </div>`;
+    } else hide('cell-section');
+
+    // 권위 데이터 + 외부 신호 비동기 호출
+    runPension(q);
+    runExternal(q);
+    runPlace(q);
+
+    renderGuide(r.guide);
+}
+
+async function runPension(q) {
+    document.getElementById('nps-section').classList.remove('hidden');
+    document.getElementById('nps-meta').textContent = '국민연금 API 호출 중…';
+    document.getElementById('nps-body').innerHTML = '<div class="text-xs text-slate-400">조회 중…</div>';
+
+    const r = await fetch('/api/pension/scan', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify({query: q, add_to_cluster: true}),
+    }).then(r => r.json()).catch(() => null);
+
+    if (!r || !r.available) {
+        document.getElementById('nps-meta').textContent = r?.reason || '오류';
+        const fixApi = r?.fix_api ? `<div class="mt-1"><span class="text-slate-700">API 경로:</span> <a href="${r.fix_api.replace(/^.*?(https?:\/\/[^\s]+).*$/, '$1')}" target="_blank" class="text-blue-600 underline">${r.fix_api}</a></div>` : '';
+        const fixCsv = r?.fix_csv ? `<div class="mt-1"><span class="text-slate-700">파일 경로:</span> ${r.fix_csv}</div>` : '';
+        const oldFix = r?.fix ? `<div class="mt-2 text-xs">${r.fix}</div>` : '';
+        document.getElementById('nps-body').innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
+                <div class="text-sm font-semibold text-amber-900 mb-2">⚠ ${r?.reason || 'API 응답 없음'}</div>
+                ${fixApi}${fixCsv}${oldFix}
+            </div>`;
+        return;
+    }
+
+    document.getElementById('nps-meta').textContent =
+        `${r.fetched_in_ms || 0}ms · 매칭 ${r.matched || 0}건 · 출처: ${r.source === 'local_csv' ? '로컬 CSV' : 'OpenAPI'}${r.overall_severity ? ` · 종합 신호: ${r.overall_severity}` : ''}`;
+
+    if (!r.matched) {
+        document.getElementById('nps-body').innerHTML =
+            `<div class="text-sm text-slate-500 py-3">${r.note || '매칭 결과 없음 — 사업장명 정확히 입력 또는 활용신청 확인 필요'}</div>` +
+            `<div class="text-[11px] text-slate-400 mt-2">참고: data.go.kr 3046071 활용신청 필요. 행정동 단위 집계 데이터.</div>`;
+        return;
+    }
+
+    document.getElementById('nps-body').innerHTML = (r.summary || []).slice(0, 8).map(s => {
+        const churnColor = (s.churn_pct >= 50) ? 'text-rose-600' : (s.churn_pct >= 35 ? 'text-amber-600' : 'text-slate-700');
+        const lossColor = (s.loss_pct >= 20) ? 'text-rose-600' : (s.loss_pct >= 10 ? 'text-amber-600' : 'text-slate-700');
+        const payColor = (s.avg_pay && s.avg_pay < 1500000) ? 'text-rose-600' : 'text-slate-700';
+        return `
+            <div class="border rounded-lg p-3 mb-2 ${s.warnings.length ? 'border-rose-200 bg-rose-50/40' : ''}">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-medium">${s.wkplNm}</div>
+                        <div class="text-xs text-slate-500 mt-0.5">사업자 ${s.bzowrRgstNo || '-'} · ${s.address || ''} · 가입일 ${s.adptDt || '-'}</div>
+                    </div>
+                    ${s.warnings.length ? `<span class="chip chip-high">신호 ${s.warnings.length}</span>` : ''}
+                </div>
+                <div class="grid grid-cols-4 gap-3 mt-3 text-center text-sm">
+                    <div><div class="text-[11px] text-slate-500">가입자수</div><div class="text-xl font-bold mono">${s.jnngpCnt}</div></div>
+                    <div><div class="text-[11px] text-slate-500">신규/상실</div><div class="text-xl font-bold mono">${s.new}/${s.lost}</div></div>
+                    <div><div class="text-[11px] text-slate-500">회전율</div><div class="text-xl font-bold mono ${churnColor}">${s.churn_pct ?? '-'}${s.churn_pct != null ? '%' : ''}</div></div>
+                    <div><div class="text-[11px] text-slate-500">평균보수</div><div class="text-xl font-bold mono ${payColor}">${s.avg_pay ? fmtKRW(s.avg_pay) : '-'}</div></div>
+                </div>
+                ${s.warnings.length ? `
+                    <ul class="mt-2 text-xs text-rose-700 space-y-0.5">
+                        ${s.warnings.map(w => `<li>• ${w.sig}</li>`).join('')}
+                    </ul>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+async function runPlace(q) {
+    document.getElementById('place-section').classList.remove('hidden');
+    document.getElementById('place-meta').textContent = '조회 중…';
+    document.getElementById('naver-local').innerHTML = '<div class="text-xs text-slate-400">네이버 지역검색 호출 중…</div>';
+    document.getElementById('google-place').innerHTML = '<div class="text-xs text-slate-400">구글 Places 호출 중…</div>';
+
+    const r = await fetch('/api/external/place', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify({query: q, add_to_cluster: true}),
+    }).then(r => r.json()).catch(() => null);
+
+    if (!r) { document.getElementById('place-meta').textContent = '오류'; return; }
+
+    document.getElementById('place-meta').textContent =
+        `네이버 ${r.naver.fetched_in_ms || 0}ms · 구글 ${r.google_total_ms || 0}ms`;
+
+    // 네이버 지역
+    if (!r.naver.available) {
+        document.getElementById('naver-local').innerHTML = '<div class="text-xs text-slate-400">네이버 키 미설정</div>';
+    } else if (!r.naver.items?.length) {
+        document.getElementById('naver-local').innerHTML = '<div class="text-xs text-slate-400">매칭된 사업장 없음</div>';
+    } else {
+        document.getElementById('naver-local').innerHTML = r.naver.items.map(it => `
+            <div class="border rounded-lg p-3">
+                <div class="font-medium">${it.title}</div>
+                <div class="text-xs text-slate-500 mt-0.5">${it.category || ''}</div>
+                <div class="text-xs mt-1">${it.roadAddress || it.address || ''}</div>
+                ${it.telephone ? `<div class="text-xs text-slate-600 mt-0.5">☎ ${it.telephone}</div>` : ''}
+            </div>
+        `).join('');
+    }
+
+    // 구글
+    const g = r.google || {};
+    if (!g.available) {
+        document.getElementById('google-place').innerHTML =
+            '<div class="text-xs text-slate-400">구글 키 미설정 — .env에 GOOGLE_PLACES_API_KEY 필요</div>';
+    } else if (g.error) {
+        document.getElementById('google-place').innerHTML =
+            `<div class="text-xs text-amber-600">구글 응답: ${g.error}</div>`;
+    } else {
+        const stars = '★'.repeat(Math.round(g.rating || 0)) + '☆'.repeat(5 - Math.round(g.rating || 0));
+        const ratingColor = (g.rating || 5) <= 3 ? 'text-rose-600' : (g.rating || 5) <= 4 ? 'text-amber-600' : 'text-emerald-600';
+        const reviews = g.reviews || [];
+        const riskTotal = g.risk_match_count || 0;
+        document.getElementById('google-place').innerHTML = `
+            <div class="border rounded-lg p-3 mb-2">
+                <div class="font-medium">${g.name || '-'}</div>
+                <div class="text-xs text-slate-500 mt-0.5">${g.address || ''}</div>
+                <div class="mt-2 flex items-center gap-2">
+                    <span class="${ratingColor} text-lg mono">${stars}</span>
+                    <span class="font-semibold ${ratingColor}">${g.rating ?? '-'}</span>
+                    <span class="text-xs text-slate-500">(${(g.user_ratings_total || 0).toLocaleString()}건)</span>
+                    ${riskTotal ? `<span class="ml-auto chip chip-high">위험 키워드 ${riskTotal}</span>` : ''}
+                </div>
+                ${g.url ? `<a href="${g.url}" target="_blank" class="text-xs text-blue-600 underline mt-1 inline-block">구글 지도에서 보기 →</a>` : ''}
+            </div>
+            ${reviews.length ? `<div class="text-xs text-slate-500 mb-1">리뷰 ${reviews.length}건</div>` : ''}
+            <div class="space-y-2">
+                ${reviews.map(rv => `
+                    <div class="border rounded-lg p-2 ${rv.match_count ? 'bg-rose-50/40 border-rose-200' : ''}">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-medium">${rv.author || ''}</span>
+                            <span class="text-xs text-slate-500">${rv.time_desc || ''}</span>
+                        </div>
+                        <div class="text-xs ${(rv.rating || 5) <= 3 ? 'text-rose-600 font-semibold' : 'text-slate-600'}">${'★'.repeat(rv.rating || 0)}${'☆'.repeat(5 - (rv.rating || 0))} ${rv.rating || ''}</div>
+                        <div class="text-xs text-slate-700 mt-1 line-clamp-3">${rv.text || ''}</div>
+                        ${rv.matched_keywords?.length ? `
+                            <div class="mt-1 flex gap-1 flex-wrap">
+                                ${rv.matched_keywords.map(kw => `<span class="text-[11px] px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded">${kw}</span>`).join('')}
+                            </div>` : ''}
+                    </div>
+                `).join('')}
+            </div>`;
+    }
+}
+
+async function runExternal(q) {
+    document.getElementById('ext-section').classList.remove('hidden');
+    document.getElementById('ext-meta').textContent = '검색 중…';
+    document.getElementById('ext-findings').innerHTML = '<div class="text-slate-400 text-sm">네이버 검색 호출 중…</div>';
+    const r = await fetch('/api/external/scan', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify({query: q, add_to_cluster: true}),
+    }).then(r => r.json()).catch(() => null);
+
+    if (!r || !r.available) {
+        document.getElementById('ext-meta').textContent = r?.reason || '오류';
+        document.getElementById('ext-findings').innerHTML = `<div class="text-slate-400 text-sm py-4">${r?.reason || '외부 검색 사용 불가'}</div>`;
+        return;
+    }
+
+    const presence = r.presence || {};
+    const presenceWarn = presence.suspicious ? ` · 🚨 실체 의심` : '';
+    document.getElementById('ext-meta').textContent =
+        `${r.fetched_in_ms}ms · 매칭 ${r.n_match} · 회사명동반 ${r.n_company_match || 0} · 타겟 ${r.n_targeted || 0}${presenceWarn}`;
+
+    const job = r.job_postings || {};
+    const sevColor = (s) => s === 'high' ? 'bg-rose-50 border-rose-200 text-rose-700'
+                          : s === 'medium' ? 'bg-amber-50 border-amber-200 text-amber-700'
+                          : 'bg-slate-50 border-slate-200 text-slate-700';
+    document.getElementById('ext-summary').innerHTML = `
+        ${['news','blog','cafearticle','kin'].map(k => {
+            const s = r.by_source[k] || {fetched:0, matched:0};
+            const lbl = {news:'뉴스', blog:'블로그', cafearticle:'카페', kin:'지식인'}[k];
+            return `
+                <div class="border rounded-lg p-2">
+                    <div class="text-xs text-slate-500">${lbl}</div>
+                    <div class="text-xl font-bold ${s.matched ? 'text-rose-600' : 'text-slate-600'}">${s.matched}</div>
+                    <div class="text-[11px] text-slate-400">조회 ${s.fetched}</div>
+                </div>`;
+        }).join('')}
+        <div class="border rounded-lg p-3 col-span-4 ${sevColor(presence.severity)}">
+            <div class="flex justify-between items-center mb-2">
+                <div class="font-semibold">🔎 실체 검증 — 채용공고 외 흔적이 있는가</div>
+                <div class="text-xs">
+                    ${presence.suspicious ? `🚨 ${presence.reason || '실체 의심'}` : (presence.available ? '실체 흔적 정상' : '데이터 없음')}
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mb-2 text-center text-xs">
+                <div><div class="text-slate-500">전체 검색</div><div class="text-xl font-bold mono">${presence.total || 0}</div></div>
+                <div><div class="text-slate-500">채용 관련</div><div class="text-xl font-bold mono">${presence.hiring || 0}</div></div>
+                <div><div class="text-slate-500">비채용 정보</div><div class="text-xl font-bold mono ${(presence.non_hiring||0) <= 1 && (presence.hiring||0) >= 3 ? 'text-rose-700' : 'text-slate-700'}">${presence.non_hiring || 0}</div></div>
+                <div><div class="text-slate-500">비채용 비율</div><div class="text-xl font-bold mono">${presence.non_hiring_ratio != null ? Math.round(presence.non_hiring_ratio*100) + '%' : '-'}</div></div>
+            </div>
+            <div class="text-xs text-slate-600 mb-1">
+                ${presence?.timeline?.real_existence_after_hiring
+                    ? `✅ 최근 채용 게시 이후 비채용 정보 ${presence.timeline.non_hiring_after_latest_hiring}건 — 실체 OK`
+                    : (presence.hiring ? `⚠ 최근 채용 시점 이후 비채용 정보 없음 (또는 시점 추적 불가)` : '')}
+            </div>
+            ${(presence.samples_non_hiring || []).length ? `
+                <div class="text-xs text-slate-600 mb-1 mt-2">비채용 게시물 샘플 (실체 흔적)</div>
+                <ul class="text-[11px] text-slate-500 space-y-0.5">
+                    ${presence.samples_non_hiring.slice(0,3).map(s => `<li>• <a href="${s.link}" target="_blank" class="hover:underline">${s.title}</a></li>`).join('')}
+                </ul>
+            ` : ''}
+        </div>
+        <div class="border rounded-lg p-3 col-span-4 ${sevColor(job.severity)}">
+            <div class="flex justify-between items-center mb-2">
+                <div class="font-semibold">📋 채용공고 반복 패턴 — 동일 자리 반복 모집 탐지</div>
+                <div class="text-xs">${job.severity === 'high' ? '🚨 동일 자리 다회 반복 — 회전율 매우 높음' : job.severity === 'medium' ? '⚠ 일부 자리 반복' : job.severity === 'low' ? '낮음' : '데이터 없음'}</div>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mb-2 text-center text-xs">
+                <div><div class="text-slate-500">총 공고</div><div class="text-xl font-bold mono">${job.total_posts || 0}</div></div>
+                <div><div class="text-slate-500">고유 자리</div><div class="text-xl font-bold mono">${job.distinct_groups || 0}</div></div>
+                <div><div class="text-slate-500">반복 누적</div><div class="text-xl font-bold mono ${(job.repeat_count||0) >= 4 ? 'text-rose-700' : ''}">${job.repeat_count || 0}</div></div>
+                <div><div class="text-slate-500">최다 반복</div><div class="text-xl font-bold mono ${(job.max_repeat||0) >= 3 ? 'text-rose-700' : ''}">${job.max_repeat || 0}회</div></div>
+            </div>
+            ${(job.repeats || []).length ? `
+                <div class="text-xs text-slate-600 mt-2 mb-1">반복 모집된 자리</div>
+                <div class="space-y-1">
+                    ${job.repeats.slice(0,4).map(g => `
+                        <div class="bg-white border rounded p-2">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium truncate">${g.role_keyword || '(직군 미상)'}</div>
+                                    <div class="text-[11px] text-slate-500">
+                                        ${g.first_pub ? `최초 ${g.first_pub}` : ''}
+                                        ${g.last_pub && g.last_pub !== g.first_pub ? ` · 최근 ${g.last_pub}` : ''}
+                                    </div>
+                                </div>
+                                <span class="chip ${g.count >= 5 ? 'chip-high' : g.count >= 3 ? 'chip-med' : 'chip-flat'}">${g.count}회</span>
+                            </div>
+                            <ul class="mt-1 space-y-0.5">
+                                ${g.posts.slice(0,3).map(p => `
+                                    <li class="text-[11px] text-slate-500 truncate">
+                                        • <a href="${p.link}" target="_blank" class="hover:underline">${p.title}</a>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>`).join('')}
+                </div>` : '<div class="text-xs text-slate-500">반복 자리 없음</div>'}
+        </div>`;
+
+    if (!r.findings?.length) {
+        document.getElementById('ext-findings').innerHTML = '<div class="text-slate-500 text-sm py-3 text-center">위험 키워드를 포함한 외부 게시물 없음</div>';
+        return;
+    }
+    document.getElementById('ext-findings').innerHTML = r.findings.map(f => `
+        <div class="border rounded-lg p-3 hover:bg-slate-50 ${f.company_in_body ? 'border-rose-300' : ''}">
+            <div class="flex justify-between items-start gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs text-slate-500 mb-1">
+                        <span class="px-1.5 py-0.5 rounded bg-slate-100">${({news:'뉴스',blog:'블로그',cafearticle:'카페',kin:'지식인'}[f.source]||f.source)}</span>
+                        ${f.kind === 'targeted' ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-semibold">타겟: ${f.targeted_with}</span>` : ''}
+                        ${f.company_in_body ? '<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">회사명 본문 포함</span>' : ''}
+                        ${f.pub ? `<span class="ml-1 text-slate-400">${f.pub}</span>` : ''}
+                    </div>
+                    <a href="${f.link}" target="_blank" class="font-medium text-slate-900 hover:underline">${f.title}</a>
+                    <div class="text-xs text-slate-600 mt-1 line-clamp-2">${f.description || ''}</div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <div class="text-[11px] text-slate-500">키워드</div>
+                    <div class="text-rose-600 text-xs font-semibold">${f.match_count}건</div>
+                </div>
+            </div>
+            <div class="mt-2 flex gap-1 flex-wrap">
+                ${f.matched_keywords.map(kw => `<span class="text-[11px] px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded">${kw}</span>`).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function lookupBno() {
+    const bno = document.getElementById('bno-input').value.trim();
+    if (!/^\d{10}$/.test(bno)) { alert('사업자번호 10자리 숫자'); return; }
+    show('result');
+    hide('hits-section'); hide('related-section'); hide('cell-section'); hide('ext-section'); hide('place-section'); hide('nps-section');
+
+    const r = await fetch(`/api/business/${bno}`).then(r => r.json());
+
+    renderRisk(r.risk || { score: 0, factors: [] }, r.guide?.label || '');
+
+    if (r.nts) {
+        show('nts-section');
+        document.getElementById('nts-fields').innerHTML = `
+            <dt class="text-slate-500">상태</dt><dd class="col-span-2 font-semibold">${r.nts.b_stt || '-'}</dd>
+            <dt class="text-slate-500">과세유형</dt><dd class="col-span-2">${r.nts.tax_type || '-'}</dd>
+            <dt class="text-slate-500">폐업일</dt><dd class="col-span-2">${r.nts.end_dt || '-'}</dd>
+            <dt class="text-slate-500">조회 시간</dt><dd class="col-span-2">${r.nts_ms} ms</dd>`;
+    }
+
+    renderGuide(r.guide);
+}
+</script>
+{% endblock %}

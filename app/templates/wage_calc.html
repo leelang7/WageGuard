@@ -1,0 +1,207 @@
+﻿{% extends "base.html" %}
+{% block title %}체불액 계산기{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">체불액 자동 계산기</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        호주 Fair Work Wage Theft Calculator를 한국 근로기준법 기준으로 이식.
+        시급·출퇴근 기록·실제 수령액을 입력하면 정상 임금과의 차액을 자동 산출합니다.
+        결과는 신고 시 진정서에 자동 첨부 가능.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="card lg:col-span-2 space-y-3">
+        <h2 class="font-semibold mb-1">근로 정보 입력</h2>
+
+        <div class="grid grid-cols-3 gap-2">
+            <div><label class="text-xs text-slate-500">연도</label>
+                <select id="w-year" class="input w-full"></select></div>
+            <div><label class="text-xs text-slate-500">시급 (원)</label>
+                <input id="w-hourly" type="number" class="input w-full" placeholder="9860" /></div>
+            <div><label class="text-xs text-slate-500">또는 월급 (원)</label>
+                <input id="w-monthly" type="number" class="input w-full" placeholder="2,060,740" /></div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+            <div><label class="text-xs text-slate-500">실제 수령액 (원)</label>
+                <input id="w-received" type="number" class="input w-full" /></div>
+            <div><label class="text-xs text-slate-500">근속 연수</label>
+                <input id="w-years" type="number" step="0.1" class="input w-full" placeholder="0" /></div>
+            <div><label class="text-xs text-slate-500">평균 월급 (퇴직금)</label>
+                <input id="w-avg" type="number" class="input w-full" placeholder="자동" /></div>
+        </div>
+
+        <div class="border-t pt-3">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-semibold">출퇴근 기록</span>
+                <div class="flex gap-1">
+                    <button onclick="addDay()" class="btn-ghost btn-sm">+ 추가</button>
+                    <button onclick="addWeek()" class="btn-ghost btn-sm">+ 1주 자동</button>
+                    <button onclick="seedSample()" class="btn-ghost btn-sm">예시 데이터</button>
+                </div>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="text-[11px] text-slate-500">
+                    <tr><th class="text-left">날짜</th><th>시작</th><th>종료</th><th>휴게(분)</th><th>휴일</th><th></th></tr>
+                </thead>
+                <tbody id="w-days"></tbody>
+            </table>
+        </div>
+
+        <div class="pt-2">
+            <button onclick="runCalc()" class="btn-primary w-full py-2.5">미지급액 계산</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="font-semibold mb-2">계산 결과</h2>
+        <div class="text-center py-3">
+            <div class="text-xs text-slate-500">미지급 추정액</div>
+            <div id="r-under" class="text-3xl font-bold text-rose-600 mono">-</div>
+        </div>
+
+        <div class="border-t pt-3 text-sm space-y-1">
+            <div class="flex justify-between"><span class="text-slate-500">정상 임금</span><span id="r-expected" class="mono">-</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">실수령</span><span id="r-received" class="mono">-</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">사용 시급</span><span id="r-hourly" class="mono">-</span></div>
+        </div>
+
+        <div class="border-t pt-3 mt-3">
+            <div class="text-xs font-semibold mb-1">위반 항목</div>
+            <ul id="r-issues" class="text-sm space-y-1"></ul>
+        </div>
+
+        <div class="border-t pt-3 mt-3">
+            <div class="text-xs font-semibold mb-1">근거</div>
+            <ul id="r-rules" class="text-[11px] text-slate-600 space-y-0.5"></ul>
+        </div>
+
+        <div class="pt-3 mt-3 border-t">
+            <button onclick="copyToReport()" class="btn-ghost w-full text-sm">계산 결과 → 신고 폼에 자동 채우기</button>
+        </div>
+    </div>
+</section>
+
+<section class="card mt-6 hidden" id="r-detail-card">
+    <h2 class="font-semibold mb-3">항목별 분해</h2>
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 text-center text-sm" id="r-breakdown"></div>
+</section>
+
+<script>
+async function loadYears() {
+    const m = await fetch('/api/wage/min-wage').then(r => r.json());
+    const sel = document.getElementById('w-year');
+    sel.innerHTML = Object.entries(m.history).reverse().map(([y, w]) => `
+        <option value="${y}" ${parseInt(y) === m.default_year ? 'selected' : ''}>${y}년 (${w.toLocaleString()}원/h)</option>
+    `).join('');
+}
+
+let dayRows = 0;
+function addDay(date, start, end, holiday) {
+    dayRows++;
+    const tr = document.createElement('tr');
+    tr.className = 'border-t border-slate-100';
+    tr.dataset.row = dayRows;
+    tr.innerHTML = `
+        <td><input type="date" class="input w-full text-xs" value="${date||''}"></td>
+        <td><input type="time" class="input w-full text-xs" value="${start||'09:00'}"></td>
+        <td><input type="time" class="input w-full text-xs" value="${end||'18:00'}"></td>
+        <td><input type="number" class="input w-full text-xs" value="30"></td>
+        <td class="text-center"><input type="checkbox" ${holiday?'checked':''}></td>
+        <td><button onclick="this.closest('tr').remove()" class="text-rose-500 text-xs">×</button></td>`;
+    document.getElementById('w-days').appendChild(tr);
+}
+
+function addWeek() {
+    const today = new Date();
+    const monday = new Date(today.setDate(today.getDate() - today.getDay() + 1));
+    for (let i = 0; i < 5; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        addDay(d.toISOString().slice(0, 10), '09:00', '20:00');
+    }
+}
+
+function seedSample() {
+    document.getElementById('w-hourly').value = '9860';
+    document.getElementById('w-received').value = '1800000';
+    document.getElementById('w-days').innerHTML = '';
+    addWeek();
+    const today = new Date(); const sun = new Date(today.setDate(today.getDate() - today.getDay() + 7));
+    addDay(sun.toISOString().slice(0,10), '10:00', '18:00', true);
+}
+
+function collect() {
+    const days = Array.from(document.querySelectorAll('#w-days tr')).map(tr => {
+        const inps = tr.querySelectorAll('input');
+        return {
+            date: inps[0].value,
+            start: inps[1].value,
+            end: inps[2].value,
+            break_minutes: parseInt(inps[3].value || '30'),
+            is_holiday: inps[4].checked,
+        };
+    }).filter(d => d.date && d.start && d.end);
+    return {
+        year: parseInt(document.getElementById('w-year').value),
+        hourly_wage: parseInt(document.getElementById('w-hourly').value || '0') || null,
+        monthly_wage: parseInt(document.getElementById('w-monthly').value || '0') || null,
+        received_amount: parseInt(document.getElementById('w-received').value || '0'),
+        severance_years: parseFloat(document.getElementById('w-years').value || '0'),
+        avg_monthly_for_severance: parseInt(document.getElementById('w-avg').value || '0'),
+        days,
+    };
+}
+
+async function runCalc() {
+    const inp = collect();
+    if (!inp.hourly_wage && !inp.monthly_wage) { alert('시급 또는 월급 입력 필요'); return; }
+    if (!inp.days.length) { alert('출퇴근 기록을 입력하세요. [예시 데이터] 버튼 활용 가능.'); return; }
+    const r = await fetch('/api/wage/calc', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify(inp),
+    }).then(r => r.json());
+    window._lastWage = r;
+
+    document.getElementById('r-under').textContent = r.underpayment.toLocaleString() + '원';
+    document.getElementById('r-expected').textContent = r.expected_total_with_severance.toLocaleString() + '원';
+    document.getElementById('r-received').textContent = r.received_amount.toLocaleString() + '원';
+    document.getElementById('r-hourly').textContent = r.hourly_used.toLocaleString() + '원/h';
+
+    document.getElementById('r-issues').innerHTML = (r.issues||[]).length
+        ? r.issues.map(i => `<li class="text-rose-700 text-sm">⚠ ${i.label}</li>`).join('')
+        : '<li class="text-emerald-700 text-sm">✓ 계산상 위반 없음</li>';
+
+    document.getElementById('r-rules').innerHTML = (r.rule_basis||[]).map(s => `<li>• ${s}</li>`).join('');
+
+    const pb = r.pay_breakdown || {};
+    const breakdown = [
+        ['정규 임금', pb.regular],
+        ['연장 1.5배', pb.overtime],
+        ['야간 0.5 가산', pb.night_premium],
+        ['휴일 1.5배', pb.holiday],
+        ['주휴수당', pb.weekly_holiday],
+        ['퇴직금', pb.severance],
+    ];
+    document.getElementById('r-breakdown').innerHTML = breakdown.map(([k, v]) => `
+        <div class="border rounded-lg p-2">
+            <div class="text-xs text-slate-500">${k}</div>
+            <div class="text-base font-bold mono">${(v||0).toLocaleString()}</div>
+        </div>`).join('');
+    document.getElementById('r-detail-card').classList.remove('hidden');
+}
+
+function copyToReport() {
+    const r = window._lastWage;
+    if (!r) { alert('먼저 계산하세요'); return; }
+    const desc = `[자동 계산] 정상 ${r.expected_total_with_severance.toLocaleString()}원 - 수령 ${r.received_amount.toLocaleString()}원 = 미지급 추정 ${r.underpayment.toLocaleString()}원\n\n위반: ${(r.issues||[]).map(i=>i.label).join(' / ')}\n\n근거: ${(r.rule_basis||[]).join(' / ')}`;
+    sessionStorage.setItem('WageGuard.wage_desc', desc);
+    sessionStorage.setItem('WageGuard.wage_amount', r.underpayment);
+    location.href = '/cases?prefill=wage';
+}
+
+loadYears();
+addWeek();
+</script>
+{% endblock %}

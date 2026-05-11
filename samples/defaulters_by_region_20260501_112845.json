@@ -1,0 +1,70 @@
+[
+  {
+    "region": "서울",
+    "count": 223
+  },
+  {
+    "region": "경기",
+    "count": 217
+  },
+  {
+    "region": "경남",
+    "count": 50
+  },
+  {
+    "region": "경북",
+    "count": 47
+  },
+  {
+    "region": "부산",
+    "count": 45
+  },
+  {
+    "region": "인천",
+    "count": 40
+  },
+  {
+    "region": "충남",
+    "count": 28
+  },
+  {
+    "region": "광주",
+    "count": 24
+  },
+  {
+    "region": "전북",
+    "count": 19
+  },
+  {
+    "region": "전남",
+    "count": 18
+  },
+  {
+    "region": "울산",
+    "count": 18
+  },
+  {
+    "region": "제주",
+    "count": 14
+  },
+  {
+    "region": "강원",
+    "count": 13
+  },
+  {
+    "region": "대구",
+    "count": 13
+  },
+  {
+    "region": "충북",
+    "count": 10
+  },
+  {
+    "region": "대전",
+    "count": 8
+  },
+  {
+    "region": "세종",
+    "count": 2
+  }
+]

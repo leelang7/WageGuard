@@ -1,0 +1,728 @@
+[
+  {
+    "industry": "건설업",
+    "region": "경기",
+    "count": 83,
+    "total_amt": 5197632363
+  },
+  {
+    "industry": "건설업",
+    "region": "서울",
+    "count": 66,
+    "total_amt": 3820711490
+  },
+  {
+    "industry": "제조업",
+    "region": "경기",
+    "count": 62,
+    "total_amt": 4523839438
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "서울",
+    "count": 39,
+    "total_amt": 3247566769
+  },
+  {
+    "industry": "제조업",
+    "region": "경남",
+    "count": 28,
+    "total_amt": 2358442786
+  },
+  {
+    "industry": "정보통신업",
+    "region": "서울",
+    "count": 25,
+    "total_amt": 3663503437
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "경기",
+    "count": 24,
+    "total_amt": 1717576267
+  },
+  {
+    "industry": "제조업",
+    "region": "경북",
+    "count": 22,
+    "total_amt": 2040531251
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "서울",
+    "count": 20,
+    "total_amt": 1522641166
+  },
+  {
+    "industry": "건설업",
+    "region": "인천",
+    "count": 20,
+    "total_amt": 1131949650
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "서울",
+    "count": 19,
+    "total_amt": 1327741215
+  },
+  {
+    "industry": "제조업",
+    "region": "서울",
+    "count": 16,
+    "total_amt": 2017289474
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "서울",
+    "count": 16,
+    "total_amt": 1136431872
+  },
+  {
+    "industry": "건설업",
+    "region": "경북",
+    "count": 16,
+    "total_amt": 959356012
+  },
+  {
+    "industry": "건설업",
+    "region": "부산",
+    "count": 15,
+    "total_amt": 1045052807
+  },
+  {
+    "industry": "건설업",
+    "region": "충남",
+    "count": 14,
+    "total_amt": 1068812355
+  },
+  {
+    "industry": "건설업",
+    "region": "광주",
+    "count": 13,
+    "total_amt": 675286144
+  },
+  {
+    "industry": "제조업",
+    "region": "부산",
+    "count": 13,
+    "total_amt": 1145445555
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "경기",
+    "count": 11,
+    "total_amt": 651885475
+  },
+  {
+    "industry": "정보통신업",
+    "region": "경기",
+    "count": 9,
+    "total_amt": 660174571
+  },
+  {
+    "industry": "건설업",
+    "region": "전북",
+    "count": 8,
+    "total_amt": 591561715
+  },
+  {
+    "industry": "건설업",
+    "region": "경남",
+    "count": 8,
+    "total_amt": 797471744
+  },
+  {
+    "industry": "건설업",
+    "region": "울산",
+    "count": 8,
+    "total_amt": 383263192
+  },
+  {
+    "industry": "제조업",
+    "region": "전남",
+    "count": 7,
+    "total_amt": 353961699
+  },
+  {
+    "industry": "건설업",
+    "region": "제주",
+    "count": 7,
+    "total_amt": 374145082
+  },
+  {
+    "industry": "제조업",
+    "region": "충남",
+    "count": 7,
+    "total_amt": 556836903
+  },
+  {
+    "industry": "건설업",
+    "region": "강원",
+    "count": 6,
+    "total_amt": 361093397
+  },
+  {
+    "industry": "제조업",
+    "region": "전북",
+    "count": 6,
+    "total_amt": 387610538
+  },
+  {
+    "industry": "제조업",
+    "region": "울산",
+    "count": 6,
+    "total_amt": 854355508
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "경기",
+    "count": 6,
+    "total_amt": 442272346
+  },
+  {
+    "industry": "건설업",
+    "region": "전남",
+    "count": 6,
+    "total_amt": 334525694
+  },
+  {
+    "industry": "부동산업",
+    "region": "서울",
+    "count": 5,
+    "total_amt": 346599668
+  },
+  {
+    "industry": "협회 및 단체  수리 및 기타 개인 서비스업",
+    "region": "서울",
+    "count": 5,
+    "total_amt": 549477318
+  },
+  {
+    "industry": "예술  스포츠 및 여가관련 서비스업",
+    "region": "경기",
+    "count": 5,
+    "total_amt": 353844211
+  },
+  {
+    "industry": "건설업",
+    "region": "충북",
+    "count": 5,
+    "total_amt": 254652700
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "부산",
+    "count": 5,
+    "total_amt": 414079180
+  },
+  {
+    "industry": "제조업",
+    "region": "광주",
+    "count": 5,
+    "total_amt": 208904047
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "인천",
+    "count": 5,
+    "total_amt": 563487889
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "제주",
+    "count": 4,
+    "total_amt": 438884450
+  },
+  {
+    "industry": "건설업",
+    "region": "대구",
+    "count": 4,
+    "total_amt": 347750841
+  },
+  {
+    "industry": "정보통신업",
+    "region": "부산",
+    "count": 4,
+    "total_amt": 191827234
+  },
+  {
+    "industry": "예술  스포츠 및 여가관련 서비스업",
+    "region": "서울",
+    "count": 4,
+    "total_amt": 1145277381
+  },
+  {
+    "industry": "교육 서비스업",
+    "region": "서울",
+    "count": 4,
+    "total_amt": 306547687
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "경기",
+    "count": 4,
+    "total_amt": 230964342
+  },
+  {
+    "industry": "제조업",
+    "region": "인천",
+    "count": 4,
+    "total_amt": 271856188
+  },
+  {
+    "industry": "협회 및 단체  수리 및 기타 개인 서비스업",
+    "region": "경남",
+    "count": 4,
+    "total_amt": 305228718
+  },
+  {
+    "industry": "운수 및 창고업",
+    "region": "서울",
+    "count": 3,
+    "total_amt": 1151595219
+  },
+  {
+    "industry": "제조업",
+    "region": "충북",
+    "count": 3,
+    "total_amt": 672147099
+  },
+  {
+    "industry": "협회 및 단체  수리 및 기타 개인 서비스업",
+    "region": "경기",
+    "count": 3,
+    "total_amt": 251930801
+  },
+  {
+    "industry": "건설업",
+    "region": "대전",
+    "count": 3,
+    "total_amt": 110853600
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "경기",
+    "count": 3,
+    "total_amt": 542039012
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "경북",
+    "count": 3,
+    "total_amt": 189290304
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "인천",
+    "count": 3,
+    "total_amt": 442478273
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "경북",
+    "count": 3,
+    "total_amt": 246967490
+  },
+  {
+    "industry": "제조업",
+    "region": "대구",
+    "count": 3,
+    "total_amt": 120771897
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "충남",
+    "count": 3,
+    "total_amt": 134923552
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "경남",
+    "count": 3,
+    "total_amt": 190354957
+  },
+  {
+    "industry": "부동산업",
+    "region": "경기",
+    "count": 2,
+    "total_amt": 116339523
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "강원",
+    "count": 2,
+    "total_amt": 244983585
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "인천",
+    "count": 2,
+    "total_amt": 92314746
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "부산",
+    "count": 2,
+    "total_amt": 149336747
+  },
+  {
+    "industry": "교육 서비스업",
+    "region": "부산",
+    "count": 2,
+    "total_amt": 84183710
+  },
+  {
+    "industry": "운수 및 창고업",
+    "region": "경기",
+    "count": 2,
+    "total_amt": 180879296
+  },
+  {
+    "industry": "교육 서비스업",
+    "region": "경기",
+    "count": 2,
+    "total_amt": 90043294
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "대구",
+    "count": 2,
+    "total_amt": 182764208
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "충남",
+    "count": 2,
+    "total_amt": 333043460
+  },
+  {
+    "industry": "운수 및 창고업",
+    "region": "부산",
+    "count": 2,
+    "total_amt": 462770590
+  },
+  {
+    "industry": "정보통신업",
+    "region": "인천",
+    "count": 2,
+    "total_amt": 181373886
+  },
+  {
+    "industry": "제조업",
+    "region": "강원",
+    "count": 2,
+    "total_amt": 96083943
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "경남",
+    "count": 2,
+    "total_amt": 221676699
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "대구",
+    "count": 2,
+    "total_amt": 87313688
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "대구",
+    "count": 2,
+    "total_amt": 281807551
+  },
+  {
+    "industry": "농업  임업 및 어업",
+    "region": "경남",
+    "count": 2,
+    "total_amt": 122063876
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "부산",
+    "count": 2,
+    "total_amt": 95970738
+  },
+  {
+    "industry": "운수 및 창고업",
+    "region": "강원",
+    "count": 2,
+    "total_amt": 186009057
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "제주",
+    "count": 2,
+    "total_amt": 155635215
+  },
+  {
+    "industry": "교육 서비스업",
+    "region": "세종",
+    "count": 1,
+    "total_amt": 40688302
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "광주",
+    "count": 1,
+    "total_amt": 44742064
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "울산",
+    "count": 1,
+    "total_amt": 68485939
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "울산",
+    "count": 1,
+    "total_amt": 57172347
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "충북",
+    "count": 1,
+    "total_amt": 101958684
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "광주",
+    "count": 1,
+    "total_amt": 81347732
+  },
+  {
+    "industry": "예술  스포츠 및 여가관련 서비스업",
+    "region": "광주",
+    "count": 1,
+    "total_amt": 33341016
+  },
+  {
+    "industry": "광업",
+    "region": "경북",
+    "count": 1,
+    "total_amt": 62656238
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "전북",
+    "count": 1,
+    "total_amt": 43405000
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "인천",
+    "count": 1,
+    "total_amt": 62953507
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "대전",
+    "count": 1,
+    "total_amt": 89788486
+  },
+  {
+    "industry": "부동산업",
+    "region": "울산",
+    "count": 1,
+    "total_amt": 32573327
+  },
+  {
+    "industry": "수도  하수 및 폐기물 처리  원료 재생업",
+    "region": "경기",
+    "count": 1,
+    "total_amt": 55669290
+  },
+  {
+    "industry": "정보통신업",
+    "region": "전남",
+    "count": 1,
+    "total_amt": 244783789
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "전북",
+    "count": 1,
+    "total_amt": 35126419
+  },
+  {
+    "industry": "협회 및 단체  수리 및 기타 개인 서비스업",
+    "region": "전남",
+    "count": 1,
+    "total_amt": 79500938
+  },
+  {
+    "industry": "교육 서비스업",
+    "region": "충남",
+    "count": 1,
+    "total_amt": 56645833
+  },
+  {
+    "industry": "협회 및 단체  수리 및 기타 개인 서비스업",
+    "region": "인천",
+    "count": 1,
+    "total_amt": 50241248
+  },
+  {
+    "industry": "예술  스포츠 및 여가관련 서비스업",
+    "region": "인천",
+    "count": 1,
+    "total_amt": 50453592
+  },
+  {
+    "industry": "농업  임업 및 어업",
+    "region": "전북",
+    "count": 1,
+    "total_amt": 108086779
+  },
+  {
+    "industry": "운수 및 창고업",
+    "region": "충북",
+    "count": 1,
+    "total_amt": 177422400
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "전남",
+    "count": 1,
+    "total_amt": 92084105
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "경남",
+    "count": 1,
+    "total_amt": 89019102
+  },
+  {
+    "industry": "예술  스포츠 및 여가관련 서비스업",
+    "region": "전북",
+    "count": 1,
+    "total_amt": 93335338
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "인천",
+    "count": 1,
+    "total_amt": 37626500
+  },
+  {
+    "industry": "교육 서비스업",
+    "region": "전북",
+    "count": 1,
+    "total_amt": 33340141
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "전남",
+    "count": 1,
+    "total_amt": 84563776
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "강원",
+    "count": 1,
+    "total_amt": 72770383
+  },
+  {
+    "industry": "보건업 및 사회복지 서비스업",
+    "region": "광주",
+    "count": 1,
+    "total_amt": 54587358
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "울산",
+    "count": 1,
+    "total_amt": 43186145
+  },
+  {
+    "industry": "농업  임업 및 어업",
+    "region": "전남",
+    "count": 1,
+    "total_amt": 57090321
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "경남",
+    "count": 1,
+    "total_amt": 117995462
+  },
+  {
+    "industry": "제조업",
+    "region": "세종",
+    "count": 1,
+    "total_amt": 74095357
+  },
+  {
+    "industry": "부동산업",
+    "region": "제주",
+    "count": 1,
+    "total_amt": 42390000
+  },
+  {
+    "industry": "금융 및 보험업",
+    "region": "서울",
+    "count": 1,
+    "total_amt": 38946846
+  },
+  {
+    "industry": "정보통신업",
+    "region": "충남",
+    "count": 1,
+    "total_amt": 41408392
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "경북",
+    "count": 1,
+    "total_amt": 63005225
+  },
+  {
+    "industry": "전문  과학 및 기술 서비스업",
+    "region": "대전",
+    "count": 1,
+    "total_amt": 91480040
+  },
+  {
+    "industry": "제조업",
+    "region": "대전",
+    "count": 1,
+    "total_amt": 62636238
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "대전",
+    "count": 1,
+    "total_amt": 62766564
+  },
+  {
+    "industry": "부동산업",
+    "region": "경북",
+    "count": 1,
+    "total_amt": 58543812
+  },
+  {
+    "industry": "숙박 및 음식점업",
+    "region": "대전",
+    "count": 1,
+    "total_amt": 128823953
+  },
+  {
+    "industry": "도매 및 소매업",
+    "region": "광주",
+    "count": 1,
+    "total_amt": 40330236
+  },
+  {
+    "industry": "사업시설 관리 사업 지원 및 임대 서비스업",
+    "region": "경남",
+    "count": 1,
+    "total_amt": 52608700
+  },
+  {
+    "industry": "정보통신업",
+    "region": "광주",
+    "count": 1,
+    "total_amt": 37805557
+  }
+]

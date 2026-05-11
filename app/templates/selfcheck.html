@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}근로자 셀프체크{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-1">근로자 1분 셀프체크</h1>
+<p class="text-sm text-slate-600 mb-6">사업장명을 모르거나 검색 결과가 없어도, 6개 신호로 임금체불 위험을 자가 진단합니다.</p>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="stat-card lg:col-span-2 space-y-3" id="questions"></div>
+
+    <div class="stat-card">
+        <h2 class="font-semibold mb-2">진단 결과</h2>
+        <div class="text-center py-4">
+            <div class="text-7xl font-bold" id="sc-score">0</div>
+            <div class="mt-2 text-sm" id="sc-label">진단 시작 전</div>
+        </div>
+        <div class="border-t pt-3">
+            <div class="text-xs text-slate-500 mb-2">권고 행동</div>
+            <ol id="sc-actions" class="text-sm space-y-2"></ol>
+        </div>
+    </div>
+</section>
+
+<script>
+let answers = {};
+async function loadQuestions() {
+    const qs = await fetch('/api/selfcheck/questions').then(r => r.json());
+    const root = document.getElementById('questions');
+    root.innerHTML = qs.map(q => `
+        <div class="border rounded-lg p-4 hover:bg-slate-50">
+            <div class="flex items-start gap-3">
+                <div class="flex-1">
+                    <div class="font-medium">${q.title}</div>
+                    <div class="text-xs text-slate-500 mt-1">신호 가중치 ${q.weight}점</div>
+                </div>
+                <div class="flex gap-1 flex-shrink-0">
+                    <button class="answer-btn px-3 py-1.5 text-sm rounded border bg-white" data-q="${q.id}" data-v="true">예</button>
+                    <button class="answer-btn px-3 py-1.5 text-sm rounded border bg-white" data-q="${q.id}" data-v="false">아니오</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    document.querySelectorAll('.answer-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            const q = b.dataset.q, v = b.dataset.v === 'true';
+            answers[q] = v;
+            // 같은 질문의 버튼 토글
+            document.querySelectorAll(`.answer-btn[data-q="${q}"]`).forEach(btn => {
+                const me = btn === b;
+                btn.className = `answer-btn px-3 py-1.5 text-sm rounded border ${me ? (v ? 'bg-rose-600 text-white border-rose-600' : 'bg-emerald-600 text-white border-emerald-600') : 'bg-white'}`;
+            });
+            score();
+        });
+    });
+}
+
+async function score() {
+    if (Object.keys(answers).length === 0) return;
+    const r = await fetch('/api/selfcheck/score', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify({answers}),
+    }).then(r => r.json());
+    const s = document.getElementById('sc-score');
+    s.textContent = r.score;
+    s.className = `text-7xl font-bold ${r.score >= 60 ? 'text-rose-600' : r.score >= 30 ? 'text-amber-600' : 'text-emerald-600'}`;
+    document.getElementById('sc-label').textContent = `${r.label} · 의심 신호 ${r.n_flagged}/6`;
+    document.getElementById('sc-actions').innerHTML = r.actions.map((a, i) => `
+        <li class="flex gap-2">
+            <span class="text-slate-400 text-xs mt-0.5">${i + 1}.</span>
+            <span>${a}</span>
+        </li>
+    `).join('');
+}
+loadQuestions();
+</script>
+{% endblock %}

@@ -1,0 +1,314 @@
+﻿{% extends "base.html" %}
+{% block title %}RDP SDK — 고용노동부 시스템 확장{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+<header>
+    <h1 class="text-xl font-extrabold tracking-tight">🔌 RDP 부정수급 탐지 SDK — 고용노동부 내 타 시스템 확장 검토</h1>
+    <p class="text-sm text-slate-500 mt-1">
+        고용24 실업급여에 적용 중인 9-신호 SDK를 고용노동부 및 산하 시스템 전체로 확장.
+        <b>동일 부처·산하기관 → 별도 MOU 없이 내부 결정으로 즉시 이식 가능.</b>
+    </p>
+</header>
+
+<!-- 고용노동부 시스템 현황 -->
+<div class="card">
+    <h2 class="text-sm font-bold mb-4">고용노동부·산하기관 온라인 신청 시스템 전체 적용 검토</h2>
+    <div class="space-y-3">
+
+        <!-- 고용24 -->
+        <div class="border border-emerald-300 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-emerald-700 text-white">
+                <div class="font-bold text-sm">① 고용24 (work24.go.kr) — 현재 적용 중</div>
+                <span class="chip bg-emerald-900 text-white text-xs">F1 0.864 · Phase 2.5</span>
+            </div>
+            <div class="p-3 grid md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">적용 기능</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 실업급여 수급자격 신청</li>
+                        <li>· 취업지원금 신청</li>
+                        <li>· 장애인 취업지원 서비스</li>
+                        <li>· 육아휴직급여 신청</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">주요 부정 패턴</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 해외 체류 중 RDP로 국내 IP 위장</li>
+                        <li>· 반복 부정수급 (6개월 이내)</li>
+                        <li>· 대리인 신청 (device 불일치)</li>
+                    </ul>
+                </div>
+                <div class="bg-emerald-50 rounded-lg p-2">
+                    <div class="text-emerald-800 font-semibold mb-1">성능</div>
+                    <div>F1 0.864 (Phase 1)</div>
+                    <div>Recall 0.76 · Precision 1.0</div>
+                    <div class="mt-1">9신호 전체 적용</div>
+                    <div class="text-emerald-700 font-semibold mt-1">차단 효과 ~80억/년</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HRD-Net -->
+        <div class="border border-indigo-300 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-indigo-700 text-white">
+                <div class="font-bold text-sm">② HRD-Net (hrd.go.kr) — 한국산업인력공단 운영 · 우선순위 1</div>
+                <span class="chip bg-indigo-900 text-white text-xs">즉시 이식 가능</span>
+            </div>
+            <div class="p-3 grid md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">적용 대상</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 국민내일배움카드 훈련비 신청</li>
+                        <li>· 원격훈련 출석 체크 (매크로 탐지)</li>
+                        <li>· 장애인 직업훈련 신청</li>
+                        <li>· 고용촉진훈련 수강 신청</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">부정 패턴 (고용24와 다른 점)</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· <b>매크로 자동 클릭 출석</b> — jitter 무한대</li>
+                        <li>· 해외에서 온라인 강의 이수 후 허위 수료</li>
+                        <li>· 훈련 IP 국가 ≠ 신청 IP 국가 (L5-C)</li>
+                        <li>· 동일 IP에서 복수 계정 동시 수강</li>
+                    </ul>
+                </div>
+                <div class="bg-indigo-50 rounded-lg p-2">
+                    <div class="text-indigo-800 font-semibold mb-1">추가 신호</div>
+                    <div>L5-C: 훈련IP vs 신청IP</div>
+                    <div>L3: key_burst (매크로)</div>
+                    <div>L4: device_drift (대리 수강)</div>
+                    <div class="mt-1">연간 부정 추정: <b>~200억</b></div>
+                    <div class="text-indigo-700 font-semibold mt-1">차단 기대 ~35억/년</div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-4 py-2 text-xs text-slate-600">
+                <b>이식 방법:</b> HRD-Net 출석 체크 폼 + 훈련비 신청 폼에 동일 SDK 삽입. 매크로 탐지를 위해 <code class="bg-slate-200 px-1">key_burst_ratio</code> 가중치 상향(×1.5).
+            </div>
+        </div>
+
+        <!-- 고용보험 EDI -->
+        <div class="border border-amber-300 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-amber-700 text-white">
+                <div class="font-bold text-sm">③ 고용보험 EDI / 사업주 신고시스템 — 우선순위 2</div>
+                <span class="chip bg-amber-900 text-white text-xs">임계값 별도 설정 필요</span>
+            </div>
+            <div class="p-3 grid md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">적용 대상</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 피보험자 자격취득·상실 신고</li>
+                        <li>· 장애인 고용의무 이행 현황 보고</li>
+                        <li>· 고용장려금 지급 신청</li>
+                        <li>· 일자리 안정자금 신청</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">부정 패턴</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 허위 고용 신고 후 장려금 청구</li>
+                        <li>· 장애인 미고용 상태로 의무 이행 허위 보고</li>
+                        <li>· 해외 사업주 대리 신고</li>
+                        <li>· <b>Track B 연계:</b> 체불명단 사업장 동일</li>
+                    </ul>
+                </div>
+                <div class="bg-amber-50 rounded-lg p-2">
+                    <div class="text-amber-800 font-semibold mb-1">주의사항</div>
+                    <div>세무사·노무사 대리 접근 많음</div>
+                    <div>→ IP신호만 우선 적용</div>
+                    <div>→ L1·L2 + 임계값 80점 (보수적)</div>
+                    <div class="mt-1">연간 부정 추정: <b>~100억</b></div>
+                    <div class="text-amber-700 font-semibold mt-1">차단 기대 ~15억/년</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 워크넷 -->
+        <div class="border border-slate-300 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-slate-600 text-white">
+                <div class="font-bold text-sm">④ 워크넷 (work.go.kr) — 한국고용정보원 운영 · 우선순위 3</div>
+                <span class="chip bg-slate-800 text-white text-xs">WageGuard 직접 연계</span>
+            </div>
+            <div class="p-3 grid md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">적용 대상</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 장애인 구직 등록 (타인 명의 허위 등록)</li>
+                        <li>· 채용공고 허위 등록</li>
+                        <li>· 취업성공패키지 참여 신청</li>
+                        <li>· 국민취업지원제도 구직활동 보고</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">부정 패턴</div>
+                    <ul class="text-slate-700 space-y-0.5">
+                        <li>· 매크로로 구직활동 이력 허위 생성</li>
+                        <li>· 해외에서 구직신청 후 수당 청구</li>
+                        <li>· 동일 IP 다수 장애인 동시 등록</li>
+                        <li>· <b>Track B 연계:</b> 채용공고 위장고용 탐지</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2">
+                    <div class="font-semibold mb-1">Track B 연동</div>
+                    <div>워크넷 구인 DB ← WageGuard</div>
+                    <div>채용공고 이상 → 위장고용 신호</div>
+                    <div>SDK + Track B 교차 검증</div>
+                    <div class="mt-1">연간 부정 추정: <b>~50억</b></div>
+                    <div class="text-slate-600 font-semibold mt-1">차단 기대 ~8억/년</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 두루누리 -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-2.5 bg-slate-500 text-white">
+                <div class="font-bold text-sm">⑤ 두루누리 사회보험 (insurancesupport.or.kr) — 소규모 사업장 지원</div>
+                <span class="chip bg-slate-700 text-white text-xs">보조 적용</span>
+            </div>
+            <div class="p-3 text-xs text-slate-700 grid md:grid-cols-2 gap-3">
+                <div>
+                    <div class="text-slate-500 mb-1 font-semibold">적용 대상·부정 유형</div>
+                    <ul class="space-y-0.5">
+                        <li>· 소규모 사업장 고용보험·국민연금 지원금 신청</li>
+                        <li>· 허위 임시직 고용 신고 후 보험료 지원 수령</li>
+                        <li>· 해외 사업주 원격 신청</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2">
+                    <div class="font-semibold mb-1">적용 신호</div>
+                    <div>L1 IP 국가 + L2 TZ — 단순 2신호 우선</div>
+                    <div>소규모 사업장 → 세무사 대리 빈번</div>
+                    <div>→ 임계값 85점 (매우 보수적)</div>
+                    <div class="mt-1 text-slate-600 font-semibold">차단 기대 ~5억/년</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 전체 임팩트 -->
+<div class="grid md:grid-cols-5 gap-4">
+    <div class="card md:col-span-3">
+        <h2 class="text-sm font-bold mb-1">고용노동부 내 확장 시 전체 차단 효과</h2>
+        <div id="impact-chart" style="height:240px;"></div>
+    </div>
+    <div class="card md:col-span-2">
+        <h2 class="text-sm font-bold mb-3">이식 우선순위 요약</h2>
+        <table class="t text-xs">
+            <thead><tr><th>순위</th><th>시스템</th><th class="text-right">차단 기대</th><th>난이도</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td class="text-emerald-700 font-bold">✅</td>
+                    <td>고용24 실업급여</td>
+                    <td class="text-right">80억</td>
+                    <td><span class="chip chip-low text-xs">완료</span></td>
+                </tr>
+                <tr>
+                    <td class="font-bold">1</td>
+                    <td>HRD-Net 내일배움카드</td>
+                    <td class="text-right">35억</td>
+                    <td><span class="chip chip-med text-xs">쉬움</span></td>
+                </tr>
+                <tr>
+                    <td class="font-bold">2</td>
+                    <td>고용보험 EDI</td>
+                    <td class="text-right">15억</td>
+                    <td><span class="chip chip-med text-xs">보통</span></td>
+                </tr>
+                <tr>
+                    <td class="font-bold">3</td>
+                    <td>워크넷</td>
+                    <td class="text-right">8억</td>
+                    <td><span class="chip chip-med text-xs">보통</span></td>
+                </tr>
+                <tr>
+                    <td class="font-bold">4</td>
+                    <td>두루누리</td>
+                    <td class="text-right">5억</td>
+                    <td><span class="chip chip-flat text-xs">보수적</span></td>
+                </tr>
+                <tr class="border-t-2 border-slate-300 font-bold">
+                    <td colspan="2">합계</td>
+                    <td class="text-right text-emerald-700">143억/년</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="text-xs text-slate-400 mt-2">* 부정수급 탐지율 15~18% 적용</p>
+    </div>
+</div>
+
+<!-- 공통 이식 가이드 -->
+<div class="card">
+    <h2 class="text-sm font-bold mb-3">공통 이식 방법 — 시스템별 파라미터만 다름</h2>
+    <div class="bg-slate-900 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+        <div class="text-slate-400 mb-2">/* 신청 폼 &lt;/head&gt; 또는 &lt;form&gt; 직전에 삽입 */</div>
+        <div class="text-green-400">&lt;script</div>
+        <div class="text-green-400 ml-4">src="https://sdk.WageGuard.kr/v1.js"</div>
+        <div class="text-yellow-300 ml-4">data-system="<span class="text-white">hrd-net</span>"          <span class="text-slate-400">/* 시스템 식별자 */</span></div>
+        <div class="text-yellow-300 ml-4">data-threshold="<span class="text-white">65</span>"           <span class="text-slate-400">/* 고용24=60, EDI=80 */</span></div>
+        <div class="text-yellow-300 ml-4">data-signals="<span class="text-white">L1,L2,L3,L4,L5C</span>"  <span class="text-slate-400">/* 시스템별 신호 선택 */</span></div>
+        <div class="text-yellow-300 ml-4">data-action="<span class="text-white">require-auth</span>"     <span class="text-slate-400">/* block | require-auth | flag */</span></div>
+        <div class="text-green-400">&gt;&lt;/script&gt;</div>
+    </div>
+    <div class="grid md:grid-cols-3 gap-3 mt-3 text-xs">
+        <div class="bg-slate-50 rounded-lg p-2.5">
+            <div class="font-semibold mb-1">data-action 옵션</div>
+            <ul class="text-slate-600 space-y-0.5">
+                <li><code class="bg-slate-200 px-1">block</code> — 즉시 차단 (점수 ≥ threshold)</li>
+                <li><code class="bg-slate-200 px-1">require-auth</code> — 추가 인증 요구 (권장)</li>
+                <li><code class="bg-slate-200 px-1">flag</code> — 통과 허용 + 검토 대기열</li>
+            </ul>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-2.5">
+            <div class="font-semibold mb-1">시스템별 권장 임계값</div>
+            <ul class="text-slate-600 space-y-0.5">
+                <li>고용24 실업급여: 60점</li>
+                <li>HRD-Net 훈련비: 65점</li>
+                <li>고용보험 EDI: 80점</li>
+                <li>워크넷 구직등록: 70점</li>
+            </ul>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-2.5">
+            <div class="font-semibold mb-1">적용 소요 시간</div>
+            <ul class="text-slate-600 space-y-0.5">
+                <li>JS 삽입: 1~2일</li>
+                <li>임계값 튜닝: 1~2주 (A/B test)</li>
+                <li>L5 행정신호 연동: 4~8주</li>
+                <li>전체 안정화: 2~3개월</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+</section>
+
+<script>
+(function(){
+    const sys   = ['고용24\n(현재)','HRD-Net\n내일배움','고용보험\nEDI','워크넷','두루누리'];
+    const fraud = [400, 200, 100, 50, 30];
+    const det   = [80, 35, 15, 8, 5];
+    const clr   = ['#16a34a','#4338ca','#d97706','#64748b','#94a3b8'];
+    const chart = echarts.init(document.getElementById('impact-chart'));
+    chart.setOption({
+        tooltip:{trigger:'axis',formatter:p=>{
+            const i=p[0].dataIndex;
+            return `<b>${sys[i].replace('\n',' ')}</b><br/>부정 추정: ${fraud[i]}억/년<br/>차단 기대: <b>${det[i]}억/년</b>`;
+        }},
+        legend:{data:['부정수급 추정','차단 기대'],bottom:0,textStyle:{fontSize:10}},
+        grid:{left:10,right:10,top:10,bottom:45,containLabel:true},
+        xAxis:{type:'category',data:sys,axisLabel:{fontSize:10,interval:0}},
+        yAxis:{type:'value',name:'억원',nameTextStyle:{fontSize:10}},
+        series:[
+            {name:'부정수급 추정',type:'bar',data:fraud.map((v,i)=>({value:v,itemStyle:{color:clr[i]+'33'}})),barWidth:'38%'},
+            {name:'차단 기대',type:'bar',data:det.map((v,i)=>({value:v,itemStyle:{color:clr[i]}})),barWidth:'38%',
+             label:{show:true,position:'top',fontSize:10,formatter:'{c}억'}}
+        ]
+    });
+    window.addEventListener('resize',()=>chart.resize());
+})();
+</script>
+{% endblock %}

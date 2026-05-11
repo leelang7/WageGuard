@@ -1,0 +1,64 @@
+{
+  "response": {
+    "header": {
+      "resultCode": "00",
+      "resultMsg": "NORMAL SERVICE."
+    },
+    "body": {
+      "items": {
+        "item": [
+          {
+            "addr": "충청남도 아산시 영인면 월선서길 108 (영인면)",
+            "opaBoheomFg": 1,
+            "post": 31428,
+            "saeopjaDrno": 3128564127,
+            "saeopjangNm": "주식회사다원조경산업아산지사",
+            "sangsiInwonCnt": 1,
+            "seongripDt": 20140801
+          },
+          {
+            "addr": "전남 구례군 구례읍 로터리길 13 (장약국)",
+            "opaBoheomFg": 1,
+            "post": 57643,
+            "saeopjaDrno": 4169052344,
+            "saeopjangNm": "이정회내과의원",
+            "sangsiInwonCnt": 3,
+            "seongripDt": 20020425
+          },
+          {
+            "addr": "경기 성남시 수정구 성남대로 1342 경원대학교비젼타워B309호 (복정동)",
+            "gyEopjongCd": 56161,
+            "gyEopjongNm": "피자, 햄버거, 샌드위치 및 유사 음식점업",
+            "opaBoheomFg": 2,
+            "post": 13120,
+            "saeopjaDrno": 1293622584,
+            "saeopjangNm": "오니기리와이규동",
+            "sangsiInwonCnt": 1,
+            "seongripDt": 20110201
+          },
+          {
+            "addr": "서울 강동구 성안로 201 (천호동)",
+            "opaBoheomFg": 1,
+            "post": "05331",
+            "saeopjaDrno": 2120380350,
+            "saeopjangNm": "해동상사",
+            "sangsiInwonCnt": 4,
+            "seongripDt": 20000701
+          },
+          {
+            "addr": "부산 동래구 반송로339번길 8 협진태양@상가2층 (명장동)",
+            "opaBoheomFg": 1,
+            "post": 47760,
+            "saeopjaDrno": 6079177759,
+            "saeopjangNm": "청현한의원",
+            "sangsiInwonCnt": 2,
+            "seongripDt": 20100901
+          }
+        ]
+      },
+      "numOfRows": 5,
+      "pageNo": 1,
+      "totalCount": 6455187
+    }
+  }
+}

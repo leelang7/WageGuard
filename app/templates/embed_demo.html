@@ -1,0 +1,116 @@
+﻿{% extends "base.html" %}
+{% block title %}임베드 데모 — 고용24 가상 신청{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">SDK 이식 시연 — 고용24 실업급여 신청 화면 (가상)</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        실제 신청 페이지에 <b>한 줄 이식</b>하면 어떻게 작동하는지 시연합니다.
+        아래 폼에 자유롭게 입력 후 <b>제출</b>을 누르면, SDK가 백그라운드에서 행동·환경 신호를 측정해
+        위험점수가 임계 이상일 때 폼 제출을 가로채고 추가 인증을 요구합니다.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card border border-slate-300 bg-white">
+        <div class="border-b pb-2 mb-3 flex items-center justify-between">
+            <span class="font-bold">실업급여 수급자격 신청</span>
+            <span class="text-[11px] text-slate-400">work24.go.kr (가상)</span>
+        </div>
+        <form id="applyForm" class="space-y-3" action="/m6/embed-demo/submit" method="POST">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-slate-500">성명</label>
+                    <input class="input w-full" name="name" placeholder="홍길동" />
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500">주민등록번호</label>
+                    <input class="input w-full font-mono" name="ssn" placeholder="******-*******" />
+                </div>
+            </div>
+            <div>
+                <label class="text-xs text-slate-500">연락처</label>
+                <input class="input w-full" name="contact" placeholder="010-...." />
+            </div>
+            <div>
+                <label class="text-xs text-slate-500">이직사유</label>
+                <select class="input w-full" name="reason">
+                    <option>경영상 해고</option>
+                    <option>계약기간 만료</option>
+                    <option>권고사직</option>
+                    <option>임금체불</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-slate-500">상세 사유</label>
+                <textarea class="input w-full" name="memo" rows="4" placeholder="입력하시는 동안 마우스·키 신호가 수집됩니다."></textarea>
+            </div>
+            <button type="submit" class="btn-primary w-full py-2.5">신청 제출</button>
+            <div class="text-[11px] text-slate-500">SDK 통합 코드: <code>&lt;script src="/static/WageGuard-sdk.js" data-on-submit-form="#applyForm" data-threshold="40"&gt;&lt;/script&gt;</code></div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="font-bold mb-2">WageGuard SDK · 실시간 시그널</div>
+        <div class="text-xs text-slate-600 mb-3">
+            SDK가 페이지에 로드되어 있고 <code>#applyForm</code> 제출을 가로챕니다.
+            점수가 임계(40) 이상이면 <b>폼 제출 차단 + 추가 인증 요구</b>.
+        </div>
+        <div id="result-box" class="hidden border-t pt-3 mt-3">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-semibold">탐지 결과</span>
+                <span id="r-score" class="text-3xl font-bold"></span>
+            </div>
+            <div id="r-decision" class="mb-2"></div>
+            <div id="r-factors" class="space-y-1"></div>
+        </div>
+
+        <div class="border-t pt-3 mt-3">
+            <div class="text-xs font-semibold mb-2">통합 시나리오</div>
+            <ol class="text-xs text-slate-700 space-y-1.5 list-decimal list-inside">
+                <li>고용노동부가 자체 환경에 SDK 호스팅</li>
+                <li>실업급여 신청 페이지에 한 줄 추가 (<code>data-on-submit-form="#real-form"</code>)</li>
+                <li>제출 시 SDK가 행동·환경 신호 수집 → 정부 서버 점수화 엔드포인트 호출</li>
+                <li>임계 초과 시 폼 제출 차단 → 추가 본인확인 단계 (모바일 GPS·영상)로 라우팅</li>
+                <li>L5(출입국 매칭)는 정부 백엔드에서 추가 결합 — Phase 2</li>
+            </ol>
+        </div>
+    </div>
+</section>
+
+<!-- 한 줄 이식 — 실제 정부 페이지에서도 이 한 줄만 추가 -->
+<script src="/static/WageGuard-sdk.js"
+        data-endpoint="/api/m6/probe"
+        data-on-submit-form="#applyForm"
+        data-threshold="40"></script>
+
+<script>
+// 결과 표시 — 실서비스에선 정부 자체 페이지가 처리. 여기선 데모용.
+window.WageGuardOnSuspicious = function(r) {
+    showResult(r);
+    alert(`⚠ 추가 본인확인이 필요합니다.\n위험점수 ${r.score}\n` + (r.factors||[]).slice(0,3).map(f=>'• ' + f.label).join('\n'));
+};
+document.addEventListener('WageGuard:result', e => showResult(e.detail));
+
+function showResult(r) {
+    document.getElementById('result-box').classList.remove('hidden');
+    const sc = document.getElementById('r-score');
+    sc.textContent = r.score;
+    sc.className = `text-3xl font-bold ${r.score >= 70 ? 'text-rose-600' : r.score >= 40 ? 'text-amber-600' : 'text-emerald-600'}`;
+    const badge = {
+        block: 'chip chip-high', step_up: 'chip chip-high',
+        watch: 'chip chip-med', ok: 'chip chip-low',
+    }[r.decision] || 'chip chip-flat';
+    document.getElementById('r-decision').innerHTML =
+        `<span class="${badge}">${(r.decision||'').toUpperCase()}</span> <span class="text-sm ml-2">${r.action || ''}</span>`;
+    document.getElementById('r-factors').innerHTML = (r.factors || []).map(f => `
+        <div class="flex justify-between items-center text-xs border rounded p-1.5">
+            <span><span class="text-[10px] font-semibold text-slate-500">${f.layer}</span> ${f.label}</span>
+            <span class="font-mono text-rose-600">+${f.points}</span>
+        </div>`).join('');
+}
+</script>
+
+<form id="proxy-submit" class="hidden">
+    <div id="submit-result"></div>
+</form>
+{% endblock %}

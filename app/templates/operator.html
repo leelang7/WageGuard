@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}운영주체 시뮬레이터{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">🧑‍💼 운영주체 시뮬레이터 — 점검관 입장에서 직접 사용</h1>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            KEAD 점검관·근로감독관 입장에서 직접 시스템을 사용해보는 시뮬레이터.
+            의심도 큐 → 점검 출동 결정 → 결과 입력 → <b>모델 가중치 자동 보정</b> 사이클을 한 화면에서.
+        </p>
+    </header>
+
+    <!-- 통계 패널 -->
+    <div class="grid md:grid-cols-3 gap-3">
+        <div class="card">
+            <div class="text-xs text-slate-500">누적 점검</div>
+            <div class="text-3xl font-extrabold mono" id="stat-total">0</div>
+        </div>
+        <div class="card border-rose-200 bg-rose-50">
+            <div class="text-xs text-rose-700">적발</div>
+            <div class="text-3xl font-extrabold mono text-rose-700" id="stat-vio">0</div>
+        </div>
+        <div class="card border-emerald-200 bg-emerald-50">
+            <div class="text-xs text-emerald-700">적중률</div>
+            <div class="text-3xl font-extrabold mono text-emerald-700" id="stat-hit">—</div>
+        </div>
+    </div>
+
+    <!-- 점검 큐 -->
+    <div class="card">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-bold">📋 점검 큐 — 의심도 TOP (라이브)</h2>
+            <div class="flex gap-2">
+                <button onclick="reload()" class="btn-ghost btn-sm">↻ 새로고침</button>
+                <button onclick="resetSim()" class="btn-ghost btn-sm">초기화</button>
+            </div>
+        </div>
+        <div id="queue-list" class="space-y-2 text-sm text-slate-500">로드 중…</div>
+    </div>
+
+    <!-- 가중치 패널 + 차트 -->
+    <div class="card border-indigo-200 bg-indigo-50">
+        <h2 class="text-lg font-bold mb-3 text-indigo-900">⚙ 신호 가중치 (학습 중)</h2>
+        <p class="text-xs text-indigo-800 mb-3">점검 결과 피드백을 통해 가중치가 자동 보정됩니다. 적발 시 +0.05, 무혐의 시 -0.03.</p>
+        <div id="weights-chart" style="height: 220px;"></div>
+        <div id="weights-panel" class="grid md:grid-cols-2 gap-3 text-sm mt-3">로드 중…</div>
+    </div>
+
+    <!-- 작동 설명 -->
+    <div class="card bg-slate-50">
+        <h2 class="text-lg font-bold mb-2">⚙ 작동 사이클</h2>
+        <ol class="text-sm text-slate-700 list-decimal pl-5 space-y-1">
+            <li><b>큐 산출</b> — 8기관 공개 데이터 교차 + 현재 가중치로 의심도 산출</li>
+            <li><b>점검 결정</b> — 점검관이 사업장별 [출동·적발] 또는 [무혐의] 결정</li>
+            <li><b>가중치 보정</b> — 결정에 따라 활성 신호 가중치 자동 조정</li>
+            <li><b>다음 큐</b> — 보정된 가중치로 새 우선순위 산출 → 적중률 ↑</li>
+        </ol>
+        <p class="text-xs text-slate-500 mt-2">※ 본 시뮬레이션은 in-memory. 실제 운영 환경에서는 KEAD·근로감독관 점검 결과가 ML 학습 데이터로 누적되어 모델 자동 개선.</p>
+    </div>
+
+</section>
+
+<script>
+async function reload() {
+    document.getElementById('queue-list').textContent = '로드 중…';
+    try {
+        const r = await fetch('/api/operator/queue?top_n=10');
+        const d = await r.json();
+        const stats = await fetch('/api/operator/stats').then(r => r.json());
+
+        document.getElementById('stat-total').textContent = stats.total_inspections;
+        document.getElementById('stat-vio').textContent = stats.violations_found;
+        document.getElementById('stat-hit').textContent = stats.total_inspections > 0
+            ? (stats.hit_rate * 100).toFixed(1) + '%'
+            : '—';
+
+        let html = '';
+        d.queue.forEach((s, i) => {
+            const color = s.suspicion_score >= 70 ? 'rose' : s.suspicion_score >= 50 ? 'amber' : 'slate';
+            const signalsJson = JSON.stringify(s.active_signals);
+            html += `
+                <div class="border border-${color}-200 rounded-lg p-3 ${s.already_inspected ? 'opacity-50' : ''}">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex-1 min-w-[200px]">
+                            <div class="font-bold">${i+1}. ${s.business}</div>
+                            <div class="text-xs text-slate-500">${s.industry || '-'} · ${s.region || '-'}</div>
+                            <div class="text-xs text-slate-600 mt-1">
+                                ${s.kead_registered ? '<span class="chip chip-flat text-[10px]">KEAD 등록</span>' : ''}
+                                ${!s.business_active ? '<span class="chip chip-high text-[10px]">휴/폐업</span>' : ''}
+                                ${s.defaulter_recent ? '<span class="chip chip-med text-[10px]">최근 체불</span>' : ''}
+                                <span class="chip chip-flat text-[10px]">임금격차 ${s.wage_gap_pct}%</span>
+                                <span class="chip chip-flat text-[10px]">매칭 ${s.job_disability_match}</span>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-extrabold mono text-${color}-700 w-16 text-center">
+                            ${s.suspicion_score.toFixed(0)}
+                        </div>
+                        <div class="flex gap-2">
+                            ${s.already_inspected
+                                ? '<span class="text-xs text-slate-500">점검 완료</span>'
+                                : `<button onclick='inspect(${s.business_id}, ${JSON.stringify(s.business)}, "violation", ${signalsJson}, ${s.suspicion_score})' class="btn-sm bg-rose-600 text-white px-3 py-1 rounded">⚠ 적발</button>
+                                   <button onclick='inspect(${s.business_id}, ${JSON.stringify(s.business)}, "clean", ${signalsJson}, ${s.suspicion_score})' class="btn-sm bg-emerald-600 text-white px-3 py-1 rounded">✓ 무혐의</button>`
+                            }
+                        </div>
+                    </div>
+                </div>`;
+        });
+        document.getElementById('queue-list').innerHTML = html;
+
+        // 가중치 차트 + 패널
+        const wLabels = {
+            kead_register_with_closure: '의무고용 + 휴/폐업',
+            kead_with_recent_default: '의무고용 + 최근 체불',
+            wage_gap_high: '임금 격차 큼',
+            job_mismatch: '부적합 매칭',
+        };
+        if (window._wChart === undefined) window._wChart = null;
+        if (!window._wChart) window._wChart = echarts.init(document.getElementById('weights-chart'));
+        const items = Object.entries(d.current_weights);
+        window._wChart.setOption({
+            tooltip: {trigger: 'axis'},
+            grid: {left: 130, right: 30, top: 10, bottom: 30},
+            xAxis: {type: 'value', min: 0.5, max: 2.0, name: '가중치'},
+            yAxis: {
+                type: 'category',
+                data: items.map(([k]) => wLabels[k] || k),
+                axisLabel: {fontSize: 11},
+            },
+            series: [{
+                type: 'bar',
+                data: items.map(([k, v]) => ({
+                    value: v,
+                    itemStyle: {
+                        color: v > 1 ? '#dc2626' : v < 1 ? '#10b981' : '#6366f1',
+                    },
+                })),
+                label: {show: true, position: 'right', formatter: '{c}', fontSize: 10},
+            }],
+        });
+        document.getElementById('weights-panel').innerHTML = '';
+    } catch (e) {
+        document.getElementById('queue-list').textContent = '오류';
+    }
+}
+
+async function inspect(bid, bname, verdict, signals, score) {
+    try {
+        await fetch('/api/operator/inspect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                business_id: bid,
+                business_name: bname,
+                verdict: verdict,
+                signals: signals,
+                suspicion_score: score,
+            }),
+        });
+        await reload();
+    } catch (e) { alert('오류'); }
+}
+
+async function resetSim() {
+    if (!confirm('시뮬레이션 초기화? 점검 로그·가중치 모두 초기화됩니다.')) return;
+    await fetch('/api/operator/reset', {method: 'POST'});
+    await reload();
+}
+
+reload();
+</script>
+{% endblock %}

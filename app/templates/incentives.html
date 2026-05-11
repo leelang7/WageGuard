@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}인센티브·도입 로드맵{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">사용자 채널을 작동시키는 인센티브 설계</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        사용자 채널(체크인·자가인증·신고)이 동기 부족으로 비활성화되는 위험을 차단하기 위한 인센티브·반대 인센티브.
+        모든 항목은 <b>정책 협의 필요 사항</b>으로 명시.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card border-l-4 border-emerald-500">
+        <h2 class="font-semibold mb-3">근로자 인센티브 (참여 동기)</h2>
+        <ul class="text-sm space-y-2">
+            <li class="flex gap-2">
+                <span class="chip chip-low">정책</span>
+                <div>
+                    <div class="font-medium">체크인 6개월 누적 → 정책자금·구직 가산점</div>
+                    <div class="text-xs text-slate-500">국민내일배움카드·고용보험 구직급여 처리 우선순위 가산</div>
+                </div>
+            </li>
+            <li class="flex gap-2">
+                <span class="chip chip-low">즉시</span>
+                <div>
+                    <div class="font-medium">실시간 사업장 위험도 알림 (워치리스트)</div>
+                    <div class="text-xs text-slate-500">본인 사업장에 신호 누적 시 자동 통지</div>
+                </div>
+            </li>
+            <li class="flex gap-2">
+                <span class="chip chip-low">즉시</span>
+                <div>
+                    <div class="font-medium">진정서 자동 생성·체불액 자동 계산</div>
+                    <div class="text-xs text-slate-500">신고 시간 단축 → 보복 노출 시간 ↓</div>
+                </div>
+            </li>
+            <li class="flex gap-2">
+                <span class="chip chip-low">정책</span>
+                <div>
+                    <div class="font-medium">보복 발생 시 1350 우선처리 패스</div>
+                    <div class="text-xs text-slate-500">근로기준법 §104 위반 신고 자동 격상</div>
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card border-l-4 border-blue-500">
+        <h2 class="font-semibold mb-3">사업주 인센티브 (자가인증 동기)</h2>
+        <ul class="text-sm space-y-2">
+            <li class="flex gap-2">
+                <span class="chip chip-low">정책</span>
+                <div>
+                    <div class="font-medium">정직 인증 사업장 → 정부 입찰 가산점</div>
+                    <div class="text-xs text-slate-500">조달청·공공기관 입찰 평가 시 가점</div>
+                </div>
+            </li>
+            <li class="flex gap-2">
+                <span class="chip chip-low">정책</span>
+                <div>
+                    <div class="font-medium">정직 인증 → 정책자금 우대 금리</div>
+                    <div class="text-xs text-slate-500">근로복지공단·신용보증기금 우대</div>
+                </div>
+            </li>
+            <li class="flex gap-2">
+                <span class="chip chip-low">시장</span>
+                <div>
+                    <div class="font-medium">구직자에 노출 — 우수 인력 확보 경쟁력</div>
+                    <div class="text-xs text-slate-500">워크넷·잡코리아 등 채용 플랫폼에 인증 표시 협의</div>
+                </div>
+            </li>
+            <li class="flex gap-2">
+                <span class="chip chip-med">반대</span>
+                <div>
+                    <div class="font-medium">자가인증 + 근로자 체크인 불일치 → 자동 우선 점검</div>
+                    <div class="text-xs text-slate-500">"지급함" 보고했는데 근로자 다수 미수령 → 거짓 신고로 처분 가중</div>
+                </div>
+            </li>
+        </ul>
+    </div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">근로감독관 인센티브</h2>
+    <ul class="text-sm space-y-2">
+        <li>• 우선순위 큐 자동 정렬로 점검 시간 30%+ 절감 (벤치마킹 — 호주 Fair Work)</li>
+        <li>• 페이퍼컴퍼니 그래프로 동일 대표자 신규 사업체 추적 자동화</li>
+        <li>• 도메인 분리 격상 규칙 → false positive 감소 → 인력 부담 ↓</li>
+    </ul>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">📅 4단계 점진적 도입 로드맵</h2>
+    <div class="space-y-3">
+        <div class="border-l-4 border-slate-400 pl-3">
+            <div class="font-semibold">Phase 0 — PoC 시범 (0~3개월)</div>
+            <ul class="text-xs text-slate-600 mt-1 list-disc list-inside">
+                <li>특정 산업·지역 1곳 시범 (예: 제주 숙박업 / 서울 학원업)</li>
+                <li>근로자 1,000명 / 사업주 100명 자발적 참여</li>
+                <li>출입국·1350 행정 데이터 미연계 — 사용자 채널만</li>
+            </ul>
+        </div>
+        <div class="border-l-4 border-blue-500 pl-3">
+            <div class="font-semibold">Phase 1 — SDK 한 줄 이식 (3~12개월)</div>
+            <ul class="text-xs text-slate-600 mt-1 list-disc list-inside">
+                <li>고용24·정부24 신청 페이지 SDK 한 줄 추가 (M6 RDP 탐지)</li>
+                <li>워크넷 채용공고에 정직 인증 마크 노출 협의</li>
+                <li>전국 자발적 등록 사업주 1만 명 확보 목표</li>
+            </ul>
+        </div>
+        <div class="border-l-4 border-amber-500 pl-3">
+            <div class="font-semibold">Phase 2 — 행정 데이터 연계 (12~24개월)</div>
+            <ul class="text-xs text-slate-600 mt-1 list-disc list-inside">
+                <li>법무부 출입국 매칭 행정정보 공동이용 협의 → M6 Phase 2 가동 (F1 0.99)</li>
+                <li>4대보험 통합 정보 / 국세청 휴폐업 시계열 연계</li>
+                <li>1350 진정 처리 결과 자동 회신 (폐쇄루프)</li>
+            </ul>
+        </div>
+        <div class="border-l-4 border-emerald-500 pl-3">
+            <div class="font-semibold">Phase 3 — 제도 정착 (24개월+)</div>
+            <ul class="text-xs text-slate-600 mt-1 list-disc list-inside">
+                <li>정직 인증을 공공입찰·정책자금 평가에 정식 반영 (시행규칙 개정 협의)</li>
+                <li>ML 모델 정식 도입 (라벨 누적 후)</li>
+                <li>전국 사업장 50%+ 자발적 인증 목표</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="card border-l-4 border-rose-500">
+    <h2 class="font-semibold mb-3">⚠ 현재 시스템 한계</h2>
+    <ul class="text-sm space-y-1.5 text-slate-700">
+        <li>• <b>실배포 A/B 데이터 부재</b> — Phase 1 도입 후 6개월이면 확보 가능</li>
+        <li>• <b>사용자 채널 의존성</b> — 인센티브 정책 협의 없으면 데이터 0 위험</li>
+        <li>• <b>L5 출입국 매칭은 시뮬만</b> — 정책 협의 사안 (수년 소요)</li>
+        <li>• <b>ML 표본 부족</b> — 789건 라벨로는 룰베이스가 한계. ML은 v2</li>
+        <li>• <b>SDK 정부 보안심사</b> — 코드 양도 + 정부 환경 호스팅으로 우회. 입찰·계약 절차 별도</li>
+    </ul>
+    <div class="text-xs text-slate-500 mt-3">
+        본 시스템은 <b>알고리즘·SDK·UI 프로토타입 + 정책 제안</b> 형태입니다.
+        실서비스화에는 운영주체(한국고용정보원·한국장애인고용공단·고용노동부)의 정책 결정과 부처 간 협의가 필수.
+    </div>
+</section>
+
+<footer class="text-[11px] text-slate-500 mt-6 p-3 bg-slate-100 rounded">
+    면책: 본 시스템의 위험점수·도메인 분류·신고 데이터는 <b>참고 보조 지표</b>입니다.
+    공식 행정 처분의 근거가 되지 않으며, 사업주의 명예훼손·영업방해를 야기할 의도가 없습니다.
+    공개 페이지의 사업장 정보는 신뢰도 기준 통과 분만 노출되며, 그 외는 자동 마스킹됩니다.
+    신고 진위는 고용노동부 1350 / 지방고용노동청의 공식 조사를 통해 확정됩니다.
+</footer>
+{% endblock %}

@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block title %}임금체불 신고{% endblock %}
+{% block content %}
+
+<div class="max-w-2xl mx-auto">
+
+<!-- 헤더 -->
+<div class="mb-6">
+    <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">임금체불 신고 접수</h1>
+    <p class="text-sm text-slate-500 mt-1">
+        최소 증빙 1건으로 접수 가능 · 신고 내용은 본인+감독관만 열람 · 케이스 번호 즉시 발급
+    </p>
+</div>
+
+<!-- 진행 단계 -->
+<div class="flex items-center gap-0 mb-8" id="progress-bar">
+    <div class="step-item active" data-step="1">
+        <div class="step-circle">1</div>
+        <div class="step-label">사업장 확인</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="2">
+        <div class="step-circle">2</div>
+        <div class="step-label">체불 내용</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="3">
+        <div class="step-circle">3</div>
+        <div class="step-label">증빙 + 제출</div>
+    </div>
+</div>
+
+<style>
+.step-item { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
+.step-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; background:#e2e8f0; color:#64748b; transition:.2s; }
+.step-label { font-size:11px; color:#94a3b8; font-weight:500; white-space:nowrap; }
+.step-line { flex:1; height:2px; background:#e2e8f0; margin-bottom:16px; transition:.2s; }
+.step-item.active .step-circle { background:#1e1b4b; color:white; }
+.step-item.active .step-label { color:#1e1b4b; font-weight:700; }
+.step-item.done .step-circle { background:#10b981; color:white; }
+.step-item.done .step-label { color:#10b981; }
+.step-line.done { background:#10b981; }
+</style>
+
+<!-- STEP 1: 사업장 -->
+<div id="step-1" class="card mb-4">
+    <h2 class="text-sm font-bold text-slate-800 mb-4">사업장 정보</h2>
+
+    <div class="mb-4">
+        <label class="text-xs font-semibold text-slate-600 block mb-1.5">사업장명 <span class="text-rose-500">*</span></label>
+        <div class="flex gap-2">
+            <input id="f-company" class="input flex-1" placeholder="예) 주식회사 ○○건설" oninput="onCompanyInput()" />
+            <button onclick="lookupCompany()" class="btn btn-primary px-4">조회</button>
+        </div>
+    </div>
+
+    <!-- 조회 결과 -->
+    <div id="company-result" class="hidden rounded-xl border p-4 mb-4">
+        <div class="flex items-start gap-3">
+            <div id="cr-icon" class="text-2xl flex-shrink-0 mt-0.5">🔍</div>
+            <div class="flex-1">
+                <div class="font-semibold text-slate-800" id="cr-title">—</div>
+                <div class="text-xs text-slate-500 mt-1" id="cr-detail">—</div>
+                <div class="flex flex-wrap gap-1.5 mt-2" id="cr-chips"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">사업장 주소 (알면)</label>
+            <input id="f-addr" class="input w-full" placeholder="시·군·구 수준 이상" />
+        </div>
+        <div>
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">사업자등록번호 (알면)</label>
+            <input id="f-bno" class="input w-full" placeholder="000-00-00000" maxlength="12" />
+        </div>
+    </div>
+
+    <button onclick="goStep(2)" class="btn btn-primary w-full">다음 →</button>
+</div>
+
+<!-- STEP 2: 체불 내용 -->
+<div id="step-2" class="card mb-4 hidden">
+    <h2 class="text-sm font-bold text-slate-800 mb-4">체불 내용</h2>
+
+    <div class="mb-4">
+        <label class="text-xs font-semibold text-slate-600 block mb-1.5">체불 유형 <span class="text-rose-500">*</span></label>
+        <div class="flex flex-wrap gap-2">
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" name="type" value="임금" class="rounded" checked /> 임금(월급)</label>
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" name="type" value="퇴직금" class="rounded" /> 퇴직금</label>
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" name="type" value="수당" class="rounded" /> 수당(연장·야간·휴일)</label>
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer"><input type="checkbox" name="type" value="지연이자" class="rounded" /> 지연이자</label>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">체불 시작 <span class="text-rose-500">*</span></label>
+            <input id="f-period-from" type="month" class="input w-full" />
+        </div>
+        <div>
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">마지막 발생</label>
+            <input id="f-period-to" type="month" class="input w-full" />
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label class="text-xs font-semibold text-slate-600 block mb-1.5">추정 체불액 <span class="text-slate-400">(모르면 비워도 됨)</span></label>
+        <div class="relative">
+            <input id="f-amount" type="number" min="0" step="10000" class="input w-full pr-8" placeholder="0" />
+            <span class="absolute right-3 top-2.5 text-sm text-slate-400">원</span>
+        </div>
+    </div>
+
+    <div class="mb-5">
+        <label class="text-xs font-semibold text-slate-600 block mb-1.5">상황 설명 <span class="text-slate-400">(선택)</span></label>
+        <textarea id="f-desc" rows="3" class="input w-full resize-none" placeholder="예) 2025년 3월부터 월급이 매달 20만원씩 삭감됨. 퇴직 후 퇴직금도 안 줌."></textarea>
+    </div>
+
+    <div class="flex gap-2">
+        <button onclick="goStep(1)" class="btn btn-ghost flex-1">← 이전</button>
+        <button onclick="goStep(3)" class="btn btn-primary flex-1">다음 →</button>
+    </div>
+</div>
+
+<!-- STEP 3: 증빙 + 제출 -->
+<div id="step-3" class="card mb-4 hidden">
+    <h2 class="text-sm font-bold text-slate-800 mb-1">증빙 자료 + 개인정보</h2>
+    <p class="text-xs text-slate-500 mb-4">증빙 1건 이상 첨부 시 신뢰도 가산. JPG·PNG·PDF 가능 (최대 8MB)</p>
+
+    <!-- 증빙 유형 선택 -->
+    <div class="grid grid-cols-2 gap-2 mb-4">
+        <label id="ev-payslip" class="ev-btn selected" onclick="selectEvidence('급여명세서', this)">
+            <span class="text-lg">📄</span>
+            <span class="text-xs font-semibold">급여명세서</span>
+        </label>
+        <label id="ev-transfer" class="ev-btn" onclick="selectEvidence('이체내역', this)">
+            <span class="text-lg">🏦</span>
+            <span class="text-xs font-semibold">이체내역</span>
+        </label>
+        <label id="ev-contract" class="ev-btn" onclick="selectEvidence('근로계약서', this)">
+            <span class="text-lg">📝</span>
+            <span class="text-xs font-semibold">근로계약서</span>
+        </label>
+        <label id="ev-chat" class="ev-btn" onclick="selectEvidence('문자·카톡', this)">
+            <span class="text-lg">💬</span>
+            <span class="text-xs font-semibold">문자·카톡</span>
+        </label>
+    </div>
+
+    <style>
+    .ev-btn { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 8px; border:2px solid #e2e8f0; border-radius:12px; cursor:pointer; transition:.15s; }
+    .ev-btn:hover { border-color:#6366f1; background:#f5f3ff; }
+    .ev-btn.selected { border-color:#6366f1; background:#eef2ff; }
+    </style>
+
+    <div class="mb-4">
+        <label class="text-xs font-semibold text-slate-600 block mb-1.5">파일 첨부</label>
+        <input id="f-files" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,.heic,.webp,.gif" class="input w-full text-sm" />
+    </div>
+
+    <div class="border-t border-slate-100 pt-4 mb-4">
+        <div class="flex items-center gap-3 mb-3">
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="anon" value="false" id="r-real" checked onchange="toggleAnon(false)" />
+                실명 신고
+            </label>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="anon" value="true" id="r-anon" onchange="toggleAnon(true)" />
+                익명 신고
+            </label>
+        </div>
+        <div id="name-section" class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="text-xs font-semibold text-slate-600 block mb-1.5">이름 <span class="text-rose-500">*</span></label>
+                <input id="f-name" class="input w-full" placeholder="홍길동" />
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-slate-600 block mb-1.5">연락처 <span class="text-rose-500">*</span></label>
+                <input id="f-contact" class="input w-full" placeholder="010-0000-0000" />
+            </div>
+        </div>
+        <div id="anon-section" class="hidden mb-3">
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">연락처 (결과 수신용, 선택)</label>
+            <input id="f-anon-contact" class="input w-full" placeholder="이메일 또는 전화번호 (입력 안 해도 됨)" />
+        </div>
+        <label class="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+            <input type="checkbox" id="f-consent" class="mt-0.5 flex-shrink-0" />
+            <span>[필수] 개인정보 수집·이용에 동의합니다. 신고 내용은 본인과 담당 감독관만 열람하며, 행정 처분 근거로 사용하지 않습니다.</span>
+        </label>
+    </div>
+
+    <!-- 신빙성 미리보기 -->
+    <div id="trust-preview" class="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-4 hidden">
+        <div class="text-xs font-semibold text-slate-600 mb-2">제출 시 반영 예상</div>
+        <div class="flex gap-4 text-center">
+            <div>
+                <div class="text-lg font-bold text-rose-600" id="tp-score">—</div>
+                <div class="text-[10px] text-slate-400">현재 위험도</div>
+            </div>
+            <div>
+                <div class="text-lg font-bold text-indigo-600" id="tp-reports">—</div>
+                <div class="text-[10px] text-slate-400">누적 신고</div>
+            </div>
+            <div>
+                <div class="text-lg font-bold text-emerald-600" id="tp-trust">—</div>
+                <div class="text-[10px] text-slate-400">신뢰도</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="submit-error" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-3 text-sm text-rose-700 mb-3"></div>
+
+    <div class="flex gap-2">
+        <button onclick="goStep(2)" class="btn btn-ghost flex-1">← 이전</button>
+        <button onclick="submitCase()" id="btn-submit" class="btn btn-primary flex-1">접수하기</button>
+    </div>
+</div>
+
+<!-- 완료 -->
+<div id="step-done" class="card text-center hidden py-10">
+    <div class="text-5xl mb-4">✅</div>
+    <h2 class="text-xl font-extrabold text-slate-900 mb-2">신고가 접수되었습니다</h2>
+    <div class="inline-block bg-slate-100 rounded-xl px-6 py-3 mb-4">
+        <div class="text-xs text-slate-500">사건번호</div>
+        <div class="text-2xl font-extrabold text-indigo-700 tracking-wider" id="done-case-no">—</div>
+    </div>
+    <p class="text-sm text-slate-600 mb-1" id="done-msg">접수되었습니다.</p>
+    <p class="text-xs text-slate-400 mb-6">이 번호를 보관하세요. 고용부 1350 또는 관할 노동청에 진정서 제출 시 사용됩니다.</p>
+    <div class="flex justify-center gap-3">
+        <a id="done-petition" href="#" class="btn btn-primary" target="_blank">진정서 출력</a>
+        <a href="/" class="btn btn-ghost">홈으로</a>
+    </div>
+</div>
+
+</div>
+
+<script>
+let currentStep = 1;
+let selectedEvidence = '급여명세서';
+
+function goStep(n) {
+    if (n > currentStep && !validateStep(currentStep)) return;
+    document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
+    const target = document.getElementById(`step-${n}`);
+    if (target) target.classList.remove('hidden');
+    currentStep = n;
+    updateProgress(n);
+    if (n === 3) loadTrustPreview();
+}
+
+function updateProgress(n) {
+    document.querySelectorAll('.step-item').forEach((el, i) => {
+        el.classList.remove('active', 'done');
+        if (i + 1 < n) el.classList.add('done');
+        if (i + 1 === n) el.classList.add('active');
+    });
+    document.querySelectorAll('.step-line').forEach((el, i) => {
+        el.classList.toggle('done', i + 1 < n);
+    });
+}
+
+function validateStep(n) {
+    if (n === 1) {
+        if (!document.getElementById('f-company').value.trim()) {
+            alert('사업장명을 입력하세요.');
+            return false;
+        }
+    }
+    if (n === 2) {
+        const types = [...document.querySelectorAll('[name="type"]:checked')];
+        if (!types.length) { alert('체불 유형을 하나 이상 선택하세요.'); return false; }
+        if (!document.getElementById('f-period-from').value) { alert('체불 시작 시점을 입력하세요.'); return false; }
+    }
+    return true;
+}
+
+function onCompanyInput() {
+    document.getElementById('company-result').classList.add('hidden');
+}
+
+async function lookupCompany() {
+    const name = document.getElementById('f-company').value.trim();
+    if (!name) return;
+    const box = document.getElementById('company-result');
+    box.className = 'rounded-xl border border-slate-200 bg-slate-50 p-4 mb-4';
+    document.getElementById('cr-icon').textContent = '⏳';
+    document.getElementById('cr-title').textContent = '조회 중…';
+    document.getElementById('cr-detail').textContent = '';
+    document.getElementById('cr-chips').innerHTML = '';
+    box.classList.remove('hidden');
+
+    try {
+        const r = await fetch('/api/business?name=' + encodeURIComponent(name)).then(r => r.json());
+        const score = r.risk_score || 0;
+        const defaults = r.defaulter_hits || [];
+        const inList = defaults.length > 0;
+
+        document.getElementById('cr-icon').textContent = inList ? '⚠️' : score > 50 ? '🟡' : '✅';
+        document.getElementById('cr-title').textContent = name;
+
+        let detail = '';
+        if (inList) detail += `체불명단 등재 (${defaults[0]?.year || ''}년). `;
+        if (score > 0) detail += `위험도 ${score}점.`;
+        if (!inList && score === 0) detail += '체불명단 미등재. 신고 시 시스템 위험도에 반영됩니다.';
+        document.getElementById('cr-detail').textContent = detail || '조회 완료';
+
+        const chips = [];
+        if (inList) chips.push('<span class="chip chip-high text-[10px]">체불명단 등재</span>');
+        if (score >= 65) chips.push('<span class="chip chip-high text-[10px]">고위험 ' + score + '점</span>');
+        else if (score >= 40) chips.push('<span class="chip chip-med text-[10px]">주의 ' + score + '점</span>');
+        if (r.nps_found) chips.push('<span class="chip bg-blue-100 text-blue-700 text-[10px]">NPS 데이터 있음</span>');
+        document.getElementById('cr-chips').innerHTML = chips.join('');
+
+        if (inList) {
+            box.className = 'rounded-xl border border-rose-200 bg-rose-50 p-4 mb-4';
+        } else if (score >= 40) {
+            box.className = 'rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4';
+        } else {
+            box.className = 'rounded-xl border border-slate-200 bg-slate-50 p-4 mb-4';
+        }
+    } catch {
+        document.getElementById('cr-icon').textContent = '❓';
+        document.getElementById('cr-title').textContent = '조회 실패';
+        document.getElementById('cr-detail').textContent = '서버 오류';
+    }
+}
+
+async function loadTrustPreview() {
+    const company = document.getElementById('f-company').value.trim();
+    if (!company) return;
+    try {
+        const r = await fetch('/api/business?name=' + encodeURIComponent(company)).then(r => r.json());
+        document.getElementById('tp-score').textContent = (r.risk_score || 0) + '점';
+        document.getElementById('tp-reports').textContent = (r.case_count || 0) + '건';
+        document.getElementById('tp-trust').textContent = (r.trust_score || 0) + '점';
+        document.getElementById('trust-preview').classList.remove('hidden');
+    } catch {}
+}
+
+function selectEvidence(type, el) {
+    selectedEvidence = type;
+    document.querySelectorAll('.ev-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function toggleAnon(isAnon) {
+    document.getElementById('name-section').classList.toggle('hidden', isAnon);
+    document.getElementById('anon-section').classList.toggle('hidden', !isAnon);
+}
+
+async function submitCase() {
+    const errBox = document.getElementById('submit-error');
+    errBox.classList.add('hidden');
+
+    const isAnon = document.getElementById('r-anon').checked;
+    if (!isAnon && !document.getElementById('f-name').value.trim()) {
+        return showErr('이름을 입력하세요.');
+    }
+    const contact = isAnon
+        ? (document.getElementById('f-anon-contact').value.trim() || '익명')
+        : document.getElementById('f-contact').value.trim();
+    if (!isAnon && !contact) return showErr('연락처를 입력하세요.');
+    if (!document.getElementById('f-consent').checked) return showErr('개인정보 동의가 필요합니다.');
+
+    const types = [...document.querySelectorAll('[name="type"]:checked')].map(el => el.value).join(', ');
+    const from  = document.getElementById('f-period-from').value;
+    const to    = document.getElementById('f-period-to').value;
+    const period = to ? `${from} ~ ${to}` : from;
+
+    const fd = new FormData();
+    fd.append('reporter_name',    isAnon ? '익명' : document.getElementById('f-name').value.trim());
+    fd.append('reporter_contact', contact);
+    fd.append('is_anonymous',     isAnon ? 'true' : 'false');
+    fd.append('consent_personal', 'true');
+    fd.append('company',          document.getElementById('f-company').value.trim());
+    fd.append('company_addr',     document.getElementById('f-addr').value.trim());
+    fd.append('company_bno',      document.getElementById('f-bno').value.trim());
+    fd.append('incident_period',  period + (types ? ` [${types}]` : ''));
+    fd.append('amount_estimated', document.getElementById('f-amount').value || '0');
+    fd.append('description',      (document.getElementById('f-desc').value || '') + (selectedEvidence ? `\n증빙유형: ${selectedEvidence}` : ''));
+
+    const fileInput = document.getElementById('f-files');
+    for (const f of fileInput.files) fd.append('files', f);
+
+    const btn = document.getElementById('btn-submit');
+    btn.textContent = '접수 중…';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/cases', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) return showErr(data.detail || '오류 발생');
+
+        document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById('step-done').classList.remove('hidden');
+        document.getElementById('done-case-no').textContent = data.case_no;
+        document.getElementById('done-msg').textContent = `위험도 ${data.risk_score || 0}점으로 접수 완료. 담당 감독관에게 배정됩니다.`;
+        if (data.case_no) {
+            document.getElementById('done-petition').href = `/api/report/${data.case_no}`;
+        }
+    } catch {
+        showErr('서버 연결 실패. 잠시 후 다시 시도해주세요.');
+    } finally {
+        btn.textContent = '접수하기';
+        btn.disabled = false;
+    }
+}
+
+function showErr(msg) {
+    const el = document.getElementById('submit-error');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+</script>
+{% endblock %}

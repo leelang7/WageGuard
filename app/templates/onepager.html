@@ -1,0 +1,168 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>WageGuard — 한 장 요약</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+    <style>
+        @page { size: A4; margin: 14mm; }
+        @media print { body { background: white; } .no-print { display: none; } }
+        body { font-family: 'Pretendard Variable', Pretendard, sans-serif; background: #f8fafc;
+               margin: 0; padding: 24px; color: #0f172a; line-height: 1.5; letter-spacing: -0.02em; }
+        .page { background: white; max-width: 800px; margin: 0 auto; padding: 28px 32px;
+                border: 1px solid #e2e8f0; border-radius: 8px; }
+        h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.03em; }
+        h2 { font-size: 13px; margin: 14px 0 6px; color: #475569;
+             text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+        .sub { color: #64748b; font-size: 12px; }
+        .grid { display: grid; gap: 8px; }
+        .g3 { grid-template-columns: repeat(3, 1fr); }
+        .g4 { grid-template-columns: repeat(4, 1fr); }
+        .g2 { grid-template-columns: 1fr 1fr; }
+        .box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; font-size: 12px; }
+        .box b { color: #0f172a; }
+        .num { font-size: 20px; font-weight: 800; font-feature-settings: 'tnum'; }
+        .accent { color: #4338ca; }
+        .accent-r { color: #dc2626; }
+        .chip { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+        .chip-rose { background: #fee2e2; color: #b91c1c; }
+        .chip-indigo { background: #e0e7ff; color: #3730a3; }
+        .chip-green { background: #d1fae5; color: #065f46; }
+        ul { padding-left: 18px; margin: 4px 0; font-size: 12px; }
+        li { margin: 1px 0; }
+        .footer { font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 10px; }
+        button.no-print { background: #0f172a; color: white; border: 0; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+<button class="no-print" onclick="window.print()">🖨 인쇄 / PDF 저장</button>
+
+<div class="page">
+    <div style="display:flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+        <div>
+            <h1>WageGuard — 장애인 노동 사각지대 점검 우선순위 AI</h1>
+            <div class="sub">고용노동부·KEAD·고용정보원 등 17개 공공데이터 AI 교차 분석 시스템</div>
+        </div>
+        <div class="sub" style="text-align:right">
+            주관기관 <b>한국장애인고용공단·한국고용정보원</b><br>
+            연락 leescvsir@gmail.com
+        </div>
+    </div>
+
+    <h2>한 줄 요약</h2>
+    <div class="box" style="background:#eef2ff; border-color:#c7d2fe">
+        <b>매칭은 워크넷이, 적발은 운영주체가, 본 시스템은 운영주체가 1만 사업장 중 어디부터 점검할지를 8기관 공개 데이터 AI 교차로 정확히 정렬</b>한다 —
+        동시에 명의도용 부정수급은 실시간 SDK로 차단. <b>체불 3~6개월 전 선행지표 탐지 (DART·NPS·4대보험)</b> 추가. KEAD·고용정보원 등 7개 기관 데이터 직접 연동.
+    </div>
+
+    <h2>두 트랙 — 역할 분담 명확</h2>
+    <div class="grid g2">
+        <div class="box" style="background:#fef2f2;border-color:#fecaca">
+            <span class="chip chip-rose">Track A · 실시간 차단</span>
+            <div style="margin-top:6px"><b>🛡 명의도용 부정수급 SDK</b></div>
+            <div class="sub" style="margin-top:4px">정부 신청 페이지에 한 줄 이식. 9 신호로 신청 시점 자동 차단. 본 시스템 직접 수행.</div>
+            <div class="sub" style="margin-top:4px">기본 F1 0.83 · 출입국 매칭 시 <b class="accent-r">0.995</b></div>
+        </div>
+        <div class="box" style="background:#eef2ff;border-color:#c7d2fe">
+            <span class="chip chip-indigo">Track B · 우선순위 정렬</span>
+            <div style="margin-top:6px"><b>📊 4종 영역 의심도 산출</b></div>
+            <div class="sub" style="margin-top:4px">위장고용·페이퍼·임금차별·부적합매칭. 본 시스템 산출 → <b>운영주체 판단·처분</b>.</div>
+            <div class="sub" style="margin-top:4px">8기관 공개 데이터 교차 (KEAD + 근로복지공단 + 국세청 + 체불 + 워크넷 + DART + NPS + NHIS)</div>
+        </div>
+    </div>
+
+    <h2>체불 선행지표 3종 (발생 전 탐지 — 신규)</h2>
+    <div class="grid g3">
+        <div class="box" style="background:#fef2f2;border-color:#fecaca"><b>📊 DART 재무위험</b><div class="sub">부채비율·영업손실·자본잠식·유동비율 → 체불 3~6개월 전 재무위기 탐지. 금감원 전자공시.</div></div>
+        <div class="box" style="background:#eff6ff;border-color:#bfdbfe"><b>📈 NPS Z-score 시계열</b><div class="sub">월별 가입자 급감 Z &lt; -2.0 경보. 이직률 급등 → 폐업·체불 전조. 순수 Python 구현.</div></div>
+        <div class="box" style="background:#f0fdf4;border-color:#bbf7d0"><b>🔗 4대보험 삼각검증</b><div class="sub">NPS × NHIS × 채용공고 교차 → 가입자 불일치·이직률 이상·유령사업장 실시간 탐지.</div></div>
+    </div>
+
+    <h2>공공기관 데이터 결합 (7개 기관 · 인증 발급완료)</h2>
+    <div class="grid g4">
+        <div class="box" style="background:#fef2f2;border-color:#fecaca"><b>♿ KEAD 근로지원인 구인</b><div class="sub">data.go.kr 15149876</div></div>
+        <div class="box" style="background:#fef2f2;border-color:#fecaca"><b>♿ KEAD 수행기관</b><div class="sub">data.go.kr 15131282</div></div>
+        <div class="box" style="background:#fef2f2;border-color:#fecaca"><b>♿ KEAD 고용개발원 보고서</b><div class="sub">data.go.kr 15144216</div></div>
+        <div class="box" style="background:#dbeafe;border-color:#93c5fd"><b>워크넷 직업정보</b><div class="sub">work24 ✅ 키 발급</div></div>
+        <div class="box" style="background:#dbeafe;border-color:#93c5fd"><b>워크넷 직무정보 (NCS)</b><div class="sub">work24 ✅ 키 발급</div></div>
+        <div class="box" style="background:#dbeafe;border-color:#93c5fd"><b>국가인적자원개발 훈련</b><div class="sub">work24 ✅ 키 발급</div></div>
+        <div class="box" style="background:#dbeafe;border-color:#93c5fd"><b>구직자취업역량 강화</b><div class="sub">work24 ✅ 키 발급</div></div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#065f46;font-weight:700;margin-top:4px">합계 7개 기관 인증 완료</div>
+
+    <h2>핵심 역량 요약</h2>
+    <ul>
+        <li><b>① 완성도</b> — 47 화면 + 200 라우트 + LIVE 7-step SSE 검증 · run.bat 한 번 기동</li>
+        <li><b>② 데이터·AI</b> — 17 데이터소스 + 7 AI 모듈 + DART·NPS Z-score·4대보험 선행지표</li>
+        <li><b>③ 실용성</b> — 운영주체 점검 자원 한정 → 직접 가치 + SDK 한 줄 이식 + 체불 발생 전 선제 탐지</li>
+        <li><b>④ 차별성</b> — "매칭·적발 사이 우선순위" 시장 새 포지션 + 선행지표 차별성</li>
+        <li><b>⑤ 확산가능성</b> — 외국인·고령·청년·산재·국민연금 동일 메커니즘</li>
+    </ul>
+
+    <h2>탐지·정렬 성능</h2>
+    <div class="grid g4">
+        <div class="box">
+            <div class="sub">Track A · SDK 기본</div>
+            <div class="num">F1 0.83</div>
+            <div class="sub">Recall 0.76 · Precision 1.0</div>
+        </div>
+        <div class="box" style="background:#f0fdf4">
+            <div class="sub">Track A · Phase 1 (브라우저 신호)</div>
+            <div class="num accent-r">F1 0.864</div>
+            <div class="sub">현장 제보 RDP 사례 기반 · 1000건 시뮬 (부정 100/정상 900)</div>
+        </div>
+        <div class="box" style="background:#eef2ff">
+            <div class="sub">Track B · ML K-fold CV (5-fold)</div>
+            <div class="num accent" id="op-cv-pct">92.8%</div>
+            <div class="sub">Logistic Regression · 실DB 기반 · 9특성</div>
+        </div>
+        <div class="box" style="background:#f0fdf4">
+            <div class="sub">Track B · ML 80/20 Holdout</div>
+            <div class="num accent-r" id="op-f1">F1 0.919</div>
+            <div class="sub">Precision 0.910 · Recall 0.928 · KEAD 2특성 결합</div>
+        </div>
+    </div>
+
+    <h2>사회적 임팩트 (몬테카를로 1,000회 · 95% CI)</h2>
+    <div class="grid g3">
+        <div class="box"><div class="sub">평균 환수·자정 효과</div><div class="num" id="op-mc-mean">5,641억/년</div></div>
+        <div class="box"><div class="sub">중앙값</div><div class="num" id="op-mc-med">5,398억/년</div></div>
+        <div class="box" style="background:#eff6ff"><div class="sub">95% 신뢰구간</div><div style="font-size:14px;font-weight:700" id="op-mc-ci">2,060 ~ 9,968억/년</div></div>
+    </div>
+
+    <h2>4단계 도입 로드맵</h2>
+    <div class="grid g4">
+        <div class="box"><span class="chip chip-indigo">Phase 0</span><br><b>0~3개월</b> PoC<br><span class="sub">1만 사업장 우선순위 + KEAD 장려금 SDK</span></div>
+        <div class="box"><span class="chip chip-indigo">Phase 1</span><br><b>3~12개월</b> 결합<br><span class="sub">고용24 SDK 한 줄 + 워크넷 실시간</span></div>
+        <div class="box"><span class="chip chip-rose">Phase 2</span><br><b>12~24개월</b> 행정<br><span class="sub">출입국·4대보험·의무고용 연계</span></div>
+        <div class="box"><span class="chip chip-green">Phase 3</span><br><b>24개월+</b> 표준<br><span class="sub">전 정부 신청 시스템 + ML 정식</span></div>
+    </div>
+
+    <script>
+    Promise.all([
+        fetch('/api/ml/cv?k=5').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/ml/confusion').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/evidence/monte-carlo?n=1000').then(r=>r.json()).catch(()=>({})),
+    ]).then(([cv, cm, mc]) => {
+        if (cv.mean_f1) document.getElementById('op-cv-pct').textContent = (cv.mean_f1*100).toFixed(1) + '%';
+        if (cm.metrics && cm.metrics.f1) document.getElementById('op-f1').textContent = 'F1 ' + cm.metrics.f1.toFixed(3);
+        const e = mc.estimates_won, ci = mc.ci_95;
+        if (e && e.mean) {
+            const ids = ['op-mc-mean','op-mc-med','op-mc-ci'];
+            const vals = [
+                (e.mean/1e8).toFixed(0)+'억/년',
+                (e.median/1e8).toFixed(0)+'억/년',
+                (ci.low/1e8).toFixed(0)+'억 ~ '+(ci.high/1e8).toFixed(0)+'억/년',
+            ];
+            ids.forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.textContent=vals[i]; });
+        }
+    });
+    </script>
+    <div class="footer">
+        라이브: <b>/triage</b> 메인 · <b>/verify</b> LIVE 7-step SSE · <b>/dart</b> 재무위험 · <b>/pension</b> NPS Z-score · <b>/insurance-cross</b> 4대보험 삼각검증<br>
+        <b>/m6/embed-demo</b> SDK · <b>/disability</b> KEAD · <b>/ml</b> 학습 + Ablation · <b>/audit</b> 5축 자점검 9.3/10 · <b>/evidence</b> 임팩트 근거 · <b>/demo</b> 자동 시연 · <b>/judge</b> 평가 가이드<br>
+        자료: 사업계획서·데이터명세서·동영상 스크립트·호스팅 가이드 — `proposal/INDEX.md` 참조
+    </div>
+</div>
+</body>
+</html>

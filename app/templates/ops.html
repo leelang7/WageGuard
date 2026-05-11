@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% block title %}운영 콘솔{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">⚙ 운영 콘솔 — 시스템 라이브 상태</h1>
+            <span class="chip chip-low" id="ops-pulse">●</span>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            "이쁜 보고서"가 아닌 "동작하는 시스템" 증명. 30초마다 heartbeat / 10분마다 워치리스트 / 1시간마다 ML 재학습 자동 실행.
+            새로고침할 때마다 변하는 숫자·이벤트로 실시간 동작을 확인할 수 있습니다.
+        </p>
+    </header>
+
+    <!-- 시스템 지표 카드 (1행) -->
+    <div class="grid md:grid-cols-4 gap-3">
+        <div class="card">
+            <div class="text-xs text-slate-500">업타임</div>
+            <div class="text-2xl font-extrabold mono" id="ops-uptime">…</div>
+            <div class="text-xs text-slate-400" id="ops-started">…</div>
+        </div>
+        <div class="card border-emerald-200 bg-emerald-50">
+            <div class="text-xs text-emerald-700">총 이벤트</div>
+            <div class="text-2xl font-extrabold mono text-emerald-700" id="ops-events">…</div>
+            <div class="text-xs text-slate-500">heartbeat 포함</div>
+        </div>
+        <div class="card border-indigo-200 bg-indigo-50">
+            <div class="text-xs text-indigo-700">DB 점검 적재</div>
+            <div class="text-2xl font-extrabold mono text-indigo-700" id="ops-insp">…</div>
+            <div class="text-xs text-slate-500">/operator → DB</div>
+        </div>
+        <div class="card border-rose-200 bg-rose-50">
+            <div class="text-xs text-rose-700">체불사업주 라벨</div>
+            <div class="text-2xl font-extrabold mono text-rose-700" id="ops-def">…</div>
+            <div class="text-xs text-slate-500">ML 학습 라벨</div>
+        </div>
+    </div>
+
+    <!-- HTTP 메트릭 카드 (2행) -->
+    <div class="grid md:grid-cols-4 gap-3">
+        <div class="card border-amber-200 bg-amber-50">
+            <div class="text-xs text-amber-700">총 HTTP 요청</div>
+            <div class="text-2xl font-extrabold mono text-amber-700" id="m-total">…</div>
+            <div class="text-xs text-slate-500" id="m-recent">…</div>
+        </div>
+        <div class="card">
+            <div class="text-xs text-slate-500">P50 latency</div>
+            <div class="text-2xl font-extrabold mono" id="m-p50">…</div>
+            <div class="text-xs text-slate-400">중앙값 (ms)</div>
+        </div>
+        <div class="card">
+            <div class="text-xs text-slate-500">P95 latency</div>
+            <div class="text-2xl font-extrabold mono" id="m-p95">…</div>
+            <div class="text-xs text-slate-400">95% (ms)</div>
+        </div>
+        <div class="card border-rose-200 bg-rose-50">
+            <div class="text-xs text-rose-700">에러율 (recent)</div>
+            <div class="text-2xl font-extrabold mono text-rose-700" id="m-err">…</div>
+            <div class="text-xs text-slate-500">5xx</div>
+        </div>
+    </div>
+
+    <!-- 스케줄러 작업 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">⏰ 스케줄러 작업</h2>
+        <div id="scheduler" class="text-sm text-slate-500">로드 중…</div>
+        <button onclick="manualTrigger()" class="btn-ghost btn-sm mt-3">▶ 수동 이벤트 트리거</button>
+    </div>
+
+    <!-- DB 테이블 행수 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">🗄 DB 테이블 행수 (라이브)</h2>
+        <div id="db-counts" class="text-sm text-slate-500">로드 중…</div>
+    </div>
+
+    <!-- 헬스체크 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">❤ 시스템 헬스체크</h2>
+        <div id="health" class="text-sm text-slate-500">로드 중…</div>
+    </div>
+
+    <!-- SSE 실시간 푸시 -->
+    <div class="card border-rose-300 bg-rose-50/30">
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-bold">📡 실시간 이벤트 푸시 (SSE)</h2>
+            <span id="sse-status" class="chip chip-flat">연결 대기</span>
+        </div>
+        <div id="sse-stream" class="text-xs font-mono bg-slate-900 text-emerald-300 p-3 rounded h-40 overflow-auto">SSE 연결 중…</div>
+    </div>
+
+    <!-- 시계열 차트 -->
+    <div class="card">
+        <h2 class="text-lg font-bold mb-3">📈 이벤트 시계열 (최근 30분)</h2>
+        <div id="ts-chart" style="height: 300px;"></div>
+    </div>
+
+    <!-- 최근 요청 + 상위 경로 -->
+    <div class="grid md:grid-cols-2 gap-4">
+        <div class="card">
+            <h2 class="text-lg font-bold mb-3">📨 최근 HTTP 요청</h2>
+            <div id="recent-req" class="text-xs text-slate-500 max-h-72 overflow-auto">로드 중…</div>
+        </div>
+        <div class="card">
+            <h2 class="text-lg font-bold mb-3">🔝 상위 호출 경로 (TOP 10)</h2>
+            <div id="top-paths" class="text-xs text-slate-500 max-h-72 overflow-auto">로드 중…</div>
+        </div>
+    </div>
+
+    <!-- 이벤트 스트림 -->
+    <div class="card border-slate-300">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-bold">📜 시스템 이벤트 스트림 (최근 50건)</h2>
+            <div class="flex gap-2">
+                <select id="event-filter" class="input text-xs" onchange="loadEvents()">
+                    <option value="">전체</option>
+                    <option value="heartbeat">heartbeat</option>
+                    <option value="inspection">inspection</option>
+                    <option value="model_train">model_train</option>
+                    <option value="watch_refresh">watch_refresh</option>
+                    <option value="startup">startup</option>
+                    <option value="manual">manual</option>
+                </select>
+                <button onclick="loadEvents()" class="btn-ghost btn-sm">↻</button>
+            </div>
+        </div>
+        <div id="events" class="text-xs text-slate-500 max-h-96 overflow-auto">로드 중…</div>
+    </div>
+
+</section>
+
+<script>
+async function loadAll() {
+    await Promise.all([loadUptime(), loadCounts(), loadHealth(), loadScheduler(), loadEvents(), loadMetrics(), loadRecent(), loadTimeseries()]);
+}
+
+let _tsChart = null;
+async function loadTimeseries() {
+    try {
+        const t = await fetch('/api/ops/timeseries?window_min=30').then(r => r.json());
+        if (!_tsChart) _tsChart = echarts.init(document.getElementById('ts-chart'));
+        const series = Object.entries(t.series).map(([kind, values]) => ({
+            name: kind,
+            type: 'line',
+            stack: 'total',
+            smooth: true,
+            data: values,
+            areaStyle: {opacity: 0.5},
+        }));
+        const colorMap = {
+            heartbeat: '#94a3b8',
+            startup: '#10b981',
+            inspection: '#dc2626',
+            model_train: '#6366f1',
+            watch_refresh: '#f59e0b',
+            manual: '#ec4899',
+        };
+        _tsChart.setOption({
+            tooltip: {trigger: 'axis'},
+            legend: {bottom: 0, fontSize: 11},
+            grid: {left: 50, right: 30, top: 20, bottom: 40},
+            xAxis: {
+                type: 'category',
+                data: t.buckets.map(b => b.slice(11)),  // HH:MM
+                axisLabel: {fontSize: 10},
+            },
+            yAxis: {type: 'value', name: '건수'},
+            color: Object.keys(t.series).map(k => colorMap[k] || '#64748b'),
+            series: series,
+        });
+    } catch (e) {
+        document.getElementById('ts-chart').textContent = '데이터 부족';
+    }
+}
+
+async function loadMetrics() {
+    try {
+        const m = await fetch('/api/ops/metrics').then(r => r.json());
+        document.getElementById('m-total').textContent = (m.total_requests ?? 0).toLocaleString();
+        document.getElementById('m-recent').textContent = `최근 윈도우 ${m.recent_count}건`;
+        document.getElementById('m-p50').textContent = m.p50_ms != null ? m.p50_ms : '—';
+        document.getElementById('m-p95').textContent = m.p95_ms != null ? m.p95_ms : '—';
+        document.getElementById('m-err').textContent = (m.error_rate * 100).toFixed(1) + '%';
+
+        // 상위 경로
+        let html = '<table class="t text-xs"><tbody>';
+        m.top_paths.forEach(p => {
+            html += `<tr><td class="mono">${p.path}</td><td class="text-right font-bold">${p.count}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('top-paths').innerHTML = html || '<div class="text-slate-400">없음</div>';
+    } catch (e) {}
+}
+
+async function loadRecent() {
+    try {
+        const r = await fetch('/api/ops/recent-requests?limit=20').then(r => r.json());
+        if (!r.recent || !r.recent.length) {
+            document.getElementById('recent-req').innerHTML = '<div class="text-slate-400">없음</div>';
+            return;
+        }
+        let html = '<table class="t text-xs"><thead><tr><th>경로</th><th class="text-right">상태</th><th class="text-right">latency</th></tr></thead><tbody>';
+        r.recent.forEach(req => {
+            const statusColor = req.status >= 500 ? 'text-rose-700' : req.status >= 400 ? 'text-amber-700' : 'text-emerald-700';
+            html += `<tr>
+                <td class="mono text-[10px]">${req.path}</td>
+                <td class="text-right ${statusColor}">${req.status}</td>
+                <td class="text-right text-slate-500">${req.duration_ms}ms</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('recent-req').innerHTML = html;
+    } catch (e) {}
+}
+
+async function loadUptime() {
+    try {
+        const u = await fetch('/api/ops/uptime').then(r => r.json());
+        document.getElementById('ops-uptime').textContent = u.uptime_human;
+        document.getElementById('ops-started').textContent = '시작 ' + new Date(u.started_at_unix * 1000).toLocaleString('ko-KR');
+    } catch (e) {}
+}
+
+async function loadCounts() {
+    try {
+        const d = await fetch('/api/ops/db-counts').then(r => r.json());
+        document.getElementById('ops-events').textContent = (d.tables.system_events ?? 0).toLocaleString();
+        document.getElementById('ops-insp').textContent = (d.tables.inspections ?? 0).toLocaleString();
+        document.getElementById('ops-def').textContent = (d.tables.defaulters ?? 0).toLocaleString();
+
+        let html = '<table class="t text-xs"><thead><tr><th>테이블</th><th class="text-right">행수</th></tr></thead><tbody>';
+        Object.entries(d.tables).forEach(([k, v]) => {
+            const high = v && v >= 100;
+            html += `<tr><td class="mono">${k}</td><td class="text-right ${high ? 'font-bold' : 'text-slate-500'}">${v == null ? '—' : v.toLocaleString()}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('db-counts').innerHTML = html;
+    } catch (e) {}
+}
+
+async function loadHealth() {
+    try {
+        const h = await fetch('/api/ops/health').then(r => r.json());
+        let html = `<div class="mb-2 text-sm"><b>${h.ok ? '✅ 정상' : '⚠ 일부 부품 문제'}</b></div>`;
+        html += '<table class="t text-xs"><tbody>';
+        h.checks.forEach(c => {
+            html += `<tr><td>${c.component}</td><td class="text-right">${c.ok ? '<span class="text-emerald-700">✓ OK</span>' : '<span class="text-rose-700">✗ 미설정</span>'}</td>${c.detail ? `<td class="text-xs text-slate-500">${c.detail}</td>` : '<td></td>'}</tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('health').innerHTML = html;
+    } catch (e) {}
+}
+
+async function loadScheduler() {
+    try {
+        const s = await fetch('/api/ops/scheduler').then(r => r.json());
+        let html = '<table class="t text-xs"><thead><tr><th>작업</th><th>주기</th><th>마지막 실행</th><th>소요</th></tr></thead><tbody>';
+        s.jobs.forEach(j => {
+            const last = j.last_run;
+            html += `<tr>
+                <td class="font-bold">${j.name}</td>
+                <td class="text-xs text-slate-500 mono">${j.interval_sec}s</td>
+                <td class="text-xs text-slate-500">${last ? last.created_at : '—'}</td>
+                <td class="text-xs text-right text-slate-500">${last && last.duration_ms != null ? last.duration_ms + 'ms' : '—'}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('scheduler').innerHTML = html;
+    } catch (e) {}
+}
+
+async function loadEvents() {
+    const kind = document.getElementById('event-filter').value;
+    try {
+        const url = kind ? `/api/ops/events?limit=50&kind=${kind}` : '/api/ops/events?limit=50';
+        const e = await fetch(url).then(r => r.json());
+        if (!e.events.length) {
+            document.getElementById('events').innerHTML = '<div class="text-slate-400">이벤트 없음 (서버 시작 직후 또는 필터 결과 없음)</div>';
+            return;
+        }
+        let html = '<table class="t text-xs"><thead><tr><th>시각</th><th>kind</th><th>actor</th><th>summary</th><th class="text-right">duration</th></tr></thead><tbody>';
+        e.events.forEach(ev => {
+            const sevColor = ev.severity === 'error' ? 'text-rose-700' : ev.severity === 'warn' ? 'text-amber-700' : '';
+            html += `<tr>
+                <td class="text-xs text-slate-500 mono">${ev.created_at}</td>
+                <td><span class="chip chip-flat text-[10px]">${ev.kind}</span></td>
+                <td class="text-xs text-slate-500">${ev.actor}</td>
+                <td class="text-xs ${sevColor}">${ev.summary}</td>
+                <td class="text-right text-xs text-slate-500 mono">${ev.duration_ms != null ? ev.duration_ms + 'ms' : ''}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('events').innerHTML = html;
+    } catch (e) {
+        document.getElementById('events').textContent = '오류';
+    }
+}
+
+async function manualTrigger() {
+    await fetch('/api/ops/test-event', {method: 'POST'});
+    await loadAll();
+}
+
+// 펄스 애니메이션
+setInterval(() => {
+    const p = document.getElementById('ops-pulse');
+    p.style.opacity = p.style.opacity === '0.3' ? '1' : '0.3';
+}, 1000);
+
+// 자동 새로고침 5초마다
+loadAll();
+setInterval(loadAll, 5000);
+
+// SSE 실시간 이벤트 스트림
+function connectSSE() {
+    const es = new EventSource('/api/ops/event-stream');
+    const stream = document.getElementById('sse-stream');
+    const status = document.getElementById('sse-status');
+    es.addEventListener('connected', (ev) => {
+        status.textContent = '🟢 연결됨';
+        status.className = 'chip chip-low';
+        stream.textContent = '[연결] SSE 스트림 활성. 새 이벤트 자동 푸시...\n';
+    });
+    es.addEventListener('event', (ev) => {
+        const d = JSON.parse(ev.data);
+        const line = `[${d.created_at.slice(11, 19)}] ${d.kind.padEnd(15)} | ${d.actor.padEnd(10)} | ${d.summary}\n`;
+        stream.textContent = line + stream.textContent;
+        if (stream.textContent.length > 4000) {
+            stream.textContent = stream.textContent.slice(0, 4000);
+        }
+    });
+    es.onerror = () => {
+        status.textContent = '⚠ 재연결 중';
+        status.className = 'chip chip-med';
+        es.close();
+        setTimeout(connectSSE, 3000);
+    };
+}
+connectSSE();
+</script>
+{% endblock %}

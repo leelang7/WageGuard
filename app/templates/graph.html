@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}대표자 그래프{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">동일 대표자 추적</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        체불사업주 1명이 여러 사업장을 운영하거나, 시간차를 두고 다시 명단에 등록되는 패턴을 추적합니다.
+        <span class="text-rose-600 font-semibold">→ "이 사람이 다음 어디에 사업장을 차릴지" 사전 추적의 근거.</span>
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="stat-card lg:col-span-2">
+        <h2 class="font-semibold mb-3">전체 네트워크 (다중 운영자 + 사업장)</h2>
+        <div id="network-chart" style="height: 520px;"></div>
+        <div class="text-xs text-slate-500 mt-2" id="network-meta"></div>
+    </div>
+    <div class="stat-card">
+        <h2 class="font-semibold mb-3">패턴 발견 운영자</h2>
+        <table class="w-full text-sm">
+            <thead class="text-slate-500 text-left">
+                <tr>
+                    <th class="py-1">인물</th>
+                    <th class="py-1 text-right">사업장</th>
+                    <th class="py-1 text-right">차수</th>
+                    <th class="py-1 text-right">총 체불액</th>
+                </tr>
+            </thead>
+            <tbody id="op-rows"></tbody>
+        </table>
+    </div>
+</section>
+
+<section class="stat-card">
+    <h2 class="font-semibold mb-3" id="person-title">인물 상세 — 위에서 클릭</h2>
+    <div id="person-detail" class="text-sm text-slate-500">왼쪽 표 또는 그래프 노드 클릭</div>
+</section>
+
+<script>
+let networkChart;
+
+async function loadOps() {
+    const ops = await fetch('/api/graph/operators').then(r => r.json());
+    const tbody = document.getElementById('op-rows');
+    tbody.innerHTML = ops.map(o => `
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+            onclick="loadPerson('${o.name.replace(/'/g, "\\'")}', ${o.age})">
+            <td class="py-1.5">${o.name} <span class="text-xs text-slate-400">(${o.age}세)</span></td>
+            <td class="py-1.5 text-right">${o.n_companies}</td>
+            <td class="py-1.5 text-right">${o.n_rounds}</td>
+            <td class="py-1.5 text-right font-mono text-xs">${fmtKRW(o.total_amount)}원</td>
+        </tr>
+    `).join('');
+}
+
+async function loadNetwork() {
+    const data = await fetch('/api/graph/network').then(r => r.json());
+    networkChart = echarts.init(document.getElementById('network-chart'));
+    networkChart.setOption({
+        tooltip: { formatter: p => p.data.info || p.data.name },
+        legend: [{ data: data.categories.map(c => c.name) }],
+        series: [{
+            type: 'graph', layout: 'force',
+            data: data.nodes, links: data.edges, categories: data.categories,
+            roam: true, draggable: true,
+            label: { show: true, position: 'right', fontSize: 10 },
+            force: { repulsion: 250, edgeLength: 80 },
+            emphasis: { focus: 'adjacency' },
+            lineStyle: { color: 'source', curveness: 0.1 }
+        }]
+    });
+    networkChart.on('click', p => {
+        if (p.data && p.data.id && p.data.id.startsWith('P:')) {
+            const [, name, age] = p.data.id.split(':');
+            loadPerson(name, age);
+        }
+    });
+    document.getElementById('network-meta').textContent =
+        `다중 운영자 ${data.n_operators}명 · 노드 ${data.nodes.length} · 엣지 ${data.edges.length}`;
+}
+
+async function loadPerson(name, age) {
+    const data = await fetch(`/api/graph/person/${encodeURIComponent(name)}/${age}`).then(r => r.json());
+    document.getElementById('person-title').textContent =
+        `${name} (${age}세) — 사업장 ${data.n_companies}개 · 차수 ${data.n_rounds}회 · 총 ${fmtKRW(data.total_amount)}원`;
+
+    const html = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <div class="text-xs text-slate-500 mb-2">차수별 체불 사업장</div>
+                <ol class="space-y-2">
+                    ${data.timeline.map(t => `
+                        <li class="border-l-4 border-rose-500 pl-3">
+                            <div class="text-xs text-slate-500">${t.round}</div>
+                            <div class="font-semibold">${t.company}</div>
+                            <div class="text-xs">${t.industry} · ${fmtKRWFull(t.amount)}</div>
+                        </li>
+                    `).join('')}
+                </ol>
+            </div>
+            <div>
+                <div class="text-xs text-slate-500 mb-2">시스템 권고</div>
+                <div class="bg-amber-50 border border-amber-200 rounded p-3 text-xs">
+                    <div class="font-semibold text-amber-800 mb-1">⚠ 추적 대상 인물</div>
+                    <ul class="list-disc list-inside text-amber-900 space-y-1">
+                        <li>이 인물이 새로 사업자등록한 사업장이 있는지 NTS API 주기 폴링</li>
+                        <li>동일 주소지 연관 사업장 모니터링</li>
+                        <li>해당 업종(${data.rows[0].industry}) 신규 진입 시 즉시 위험 알림</li>
+                        ${data.n_rounds >= 2 ? '<li><strong>차수 재등록 이력 → 재발 가능성 높음</strong></li>' : ''}
+                    </ul>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('person-detail').innerHTML = html;
+}
+
+loadOps();
+loadNetwork();
+</script>
+{% endblock %}

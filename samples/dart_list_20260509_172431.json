@@ -1,0 +1,65 @@
+{
+  "status": "000",
+  "message": "정상",
+  "page_no": 1,
+  "page_count": 5,
+  "total_count": 17,
+  "total_page": 4,
+  "list": [
+    {
+      "corp_code": "00126380",
+      "corp_name": "삼성전자",
+      "stock_code": "005930",
+      "corp_cls": "Y",
+      "report_nm": "최대주주등소유주식변동신고서              ",
+      "rcept_no": "20260508801105",
+      "flr_nm": "삼성전자",
+      "rcept_dt": "20260508",
+      "rm": "유"
+    },
+    {
+      "corp_code": "00126380",
+      "corp_name": "삼성전자",
+      "stock_code": "005930",
+      "corp_cls": "Y",
+      "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서",
+      "rcept_no": "20260508000866",
+      "flr_nm": "이동건",
+      "rcept_dt": "20260508",
+      "rm": ""
+    },
+    {
+      "corp_code": "00126380",
+      "corp_name": "삼성전자",
+      "stock_code": "005930",
+      "corp_cls": "Y",
+      "report_nm": "주식등의대량보유상황보고서(일반)",
+      "rcept_no": "20260504000421",
+      "flr_nm": "삼성물산",
+      "rcept_dt": "20260504",
+      "rm": ""
+    },
+    {
+      "corp_code": "00126380",
+      "corp_name": "삼성전자",
+      "stock_code": "005930",
+      "corp_cls": "Y",
+      "report_nm": "특수관계인에대한출자",
+      "rcept_no": "20260430001632",
+      "flr_nm": "삼성전자",
+      "rcept_dt": "20260430",
+      "rm": "공"
+    },
+    {
+      "corp_code": "00126380",
+      "corp_name": "삼성전자",
+      "stock_code": "005930",
+      "corp_cls": "Y",
+      "report_nm": "특수관계인과의내부거래",
+      "rcept_no": "20260430001625",
+      "flr_nm": "삼성전자",
+      "rcept_dt": "20260430",
+      "rm": "공"
+    }
+  ]
+}

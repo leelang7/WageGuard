@@ -1,0 +1,97 @@
+﻿{% extends "base.html" %}
+{% block title %}5축 자체 점검{% endblock %}
+{% block content %}
+<section class="space-y-6">
+
+    <header>
+        <div class="flex items-baseline gap-2 flex-wrap">
+            <h1 class="text-2xl font-extrabold tracking-tight">⚖ 시스템 자체 점검 — 5개 축 라이브 검증</h1>
+        </div>
+        <p class="text-sm text-slate-600 mt-2">
+            완성도·데이터 활용성·실용성·차별성·확산가능성 5개 축 자체 점검. 각 항목은 라이브 페이지·API로 즉시 검증 가능.
+        </p>
+    </header>
+
+    <!-- 종합 점수 + 레이더 -->
+    <div class="card border-emerald-300 bg-emerald-50">
+        <div class="grid md:grid-cols-2 gap-4 items-center">
+            <div>
+                <div class="text-xs text-emerald-700 mb-1">자체 점검 평균</div>
+                <div class="text-6xl font-extrabold mono text-emerald-700" id="avg-score">…</div>
+                <div class="text-sm text-emerald-700 mt-1" id="tier">…</div>
+                <div class="text-xs text-slate-600 max-w-md mt-3">
+                    ※ 시스템 자체 점검 결과 — 실제 심사 점수와 다를 수 있음.
+                    근거 항목 모두 라이브 검증 가능.
+                </div>
+            </div>
+            <div id="radar-chart" style="height: 300px;"></div>
+        </div>
+    </div>
+
+    <!-- 5축 상세 -->
+    <div id="axes-grid" class="space-y-4 text-sm text-slate-500">로드 중…</div>
+
+</section>
+
+<script>
+async function loadAxes() {
+    try {
+        const r = await fetch('/api/audit/axes');
+        const d = await r.json();
+        document.getElementById('avg-score').textContent = d.average.toFixed(1) + '/10';
+        document.getElementById('tier').textContent = d.expected_award_tier;
+
+        // ECharts 레이더
+        if (window.echarts) {
+            const chart = echarts.init(document.getElementById('radar-chart'));
+            chart.setOption({
+                tooltip: {trigger: 'item'},
+                radar: {
+                    indicator: d.axes.map(a => ({name: a.axis, max: 10})),
+                    splitArea: {areaStyle: {color: ['rgba(255,255,255,0.5)', 'rgba(240,253,244,0.3)']}},
+                    axisName: {color: '#475569', fontSize: 11},
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: d.axes.map(a => a.self_score),
+                        name: 'WageGuard 자체점검',
+                        areaStyle: {color: 'rgba(16,185,129,0.3)'},
+                        lineStyle: {color: '#10b981', width: 2},
+                        itemStyle: {color: '#10b981'},
+                    }],
+                }],
+            });
+        }
+
+        let html = '';
+        d.axes.forEach((a, i) => {
+            const color = a.self_score >= 9.5 ? 'rose' : a.self_score >= 9 ? 'indigo' : 'slate';
+            html += `
+                <div class="card border-${color}-300">
+                    <div class="flex items-baseline gap-2 mb-2">
+                        <span class="chip chip-${color === 'rose' ? 'high' : color === 'indigo' ? 'blue' : 'flat'}">축 ${i+1}</span>
+                        <h3 class="text-lg font-bold">${a.axis}</h3>
+                        <span class="ml-auto text-2xl font-extrabold mono text-${color}-700">${a.self_score.toFixed(1)}</span>
+                    </div>
+                    <table class="t text-xs">
+                        <thead><tr><th>근거 항목</th><th>내용</th><th class="text-right">라이브 검증</th></tr></thead>
+                        <tbody>`;
+            a.evidence.forEach(e => {
+                html += `<tr>
+                    <td class="font-semibold">${e.item}</td>
+                    <td class="text-slate-700">${e.value}</td>
+                    <td class="text-right"><a href="${e.live}" target="_blank" class="text-emerald-700 underline">${e.live}</a></td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+        });
+        document.getElementById('axes-grid').innerHTML = html;
+    } catch (e) {
+        document.getElementById('axes-grid').textContent = '오류';
+    }
+}
+
+loadAxes();
+</script>
+{% endblock %}

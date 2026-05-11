@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}검증 지표{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">시스템 검증 지표</h1>
+    <p class="text-sm text-slate-600 mt-1">데이터 커버리지, M6 성능, 시점 패턴을 시연용으로 노출.</p>
+</div>
+
+<section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" id="cov-cards"></section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">M6 부정수급 탐지 — Phase별 성능</h2>
+    <div id="m6-cards" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    <div id="m6-improve" class="text-sm text-slate-700 mt-3 text-center"></div>
+</section>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card">
+        <h2 class="font-semibold mb-3">차수별 체불사업주 누적</h2>
+        <div id="round-chart" style="height: 300px;"></div>
+    </div>
+    <div class="card">
+        <h2 class="font-semibold mb-3">신고 시간대 분포 (24h)</h2>
+        <div id="hour-chart" style="height: 300px;"></div>
+    </div>
+</section>
+
+<section class="card">
+    <h2 class="font-semibold mb-3">도메인별 신호 누적</h2>
+    <div id="domain-chart" style="height: 300px;"></div>
+</section>
+
+<script>
+async function load() {
+    const cov = await fetch('/api/metrics/coverage').then(r => r.json());
+    const cards = [
+        {l: '체불사업주', v: cov.defaulters, sub: '명단 누적'},
+        {l: '위험셀', v: cov.risk_cells, sub: '업종×지역'},
+        {l: '신고 케이스', v: cov.cases, sub: '증빙 ' + cov.case_files + '건'},
+        {l: '워치리스트', v: cov.watchlist, sub: '사업장'},
+        {l: '클러스터', v: cov.company_clusters, sub: '격상 ' + cov.clusters_alerted},
+        {l: '신호 누적', v: cov.company_signals, sub: '도메인 분리'},
+        {l: 'NPS 색인', v: cov.nps_workplaces_indexed, sub: '국민연금 적재'},
+        {l: 'API 호출', v: cov.api_calls, sub: '성공률 ' + cov.api_success_rate + '%'},
+    ];
+    document.getElementById('cov-cards').innerHTML = cards.map(c => `
+        <div class="card">
+            <div class="text-xs text-slate-500">${c.l}</div>
+            <div class="text-3xl font-bold mt-1">${(c.v||0).toLocaleString()}</div>
+            <div class="text-xs text-slate-400 mt-1">${c.sub}</div>
+        </div>`).join('');
+
+    // M6
+    const m6 = await fetch('/api/metrics/m6').then(r => r.json());
+    if (m6.available) {
+        const phasePane = (label, m, color) => `
+            <div class="border rounded-xl p-4">
+                <div class="font-semibold mb-2">${label}</div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div><div class="text-xs text-slate-500">Precision</div><div class="text-2xl font-bold">${m.precision.toFixed(3)}</div></div>
+                    <div><div class="text-xs text-slate-500">Recall</div><div class="text-2xl font-bold ${color}">${m.recall.toFixed(3)}</div></div>
+                    <div><div class="text-xs text-slate-500">F1</div><div class="text-2xl font-bold ${color}">${m.f1.toFixed(3)}</div></div>
+                </div>
+                <div class="mt-3 text-xs text-slate-500 text-center">TP ${m.tp} · FP ${m.fp} · TN ${m.tn} · FN ${m.fn}</div>
+            </div>`;
+        document.getElementById('m6-cards').innerHTML =
+            phasePane('Phase 1 (현행 — IP·행동·디바이스)', m6.phase1, 'text-amber-600') +
+            phasePane('Phase 2 (+ L5 출입국 매칭)', m6.phase2, 'text-emerald-600');
+        document.getElementById('m6-improve').innerHTML =
+            `→ Phase 2 도입 시 Recall 개선 <span class="text-emerald-700 font-bold">${(m6.improvement_recall*100).toFixed(1)}%p</span>`;
+    }
+
+    // timing
+    const t = await fetch('/api/metrics/timing').then(r => r.json());
+    const c1 = echarts.init(document.getElementById('round-chart'));
+    c1.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: t.by_round.map(r => r.round) },
+        yAxis: { type: 'value' },
+        series: [{ type: 'bar', data: t.by_round.map(r => r.n), itemStyle: { color: '#dc2626' } }],
+    });
+    const hours = Array.from({length: 24}, (_, i) => i);
+    const hourMap = Object.fromEntries((t.case_by_hour||[]).map(r => [r.hour, r.n]));
+    const c2 = echarts.init(document.getElementById('hour-chart'));
+    c2.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: hours.map(h => h + '시') },
+        yAxis: { type: 'value' },
+        series: [{ type: 'line', smooth: true, data: hours.map(h => hourMap[h] || 0), areaStyle: {} }],
+    });
+
+    // domain
+    const dom = cov.signals_by_domain || {};
+    const labels = {pay_default: '임금체불', hiring: '채용·회전율', closure: '폐업·축소', finance: '자금난', reputation: '평판', meta: '사용자 관심'};
+    const c3 = echarts.init(document.getElementById('domain-chart'));
+    c3.setOption({
+        tooltip: { trigger: 'item' },
+        series: [{
+            type: 'pie', radius: ['40%', '70%'],
+            data: Object.entries(dom).map(([k, v]) => ({name: labels[k] || k, value: v})),
+            label: { formatter: '{b}\n{c}건 ({d}%)' },
+        }],
+    });
+}
+load();
+</script>
+{% endblock %}

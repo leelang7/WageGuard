@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}임금명세서 검사{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">임금명세서 자동 분석</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        싱가포르 MOM <i>Mandatory Itemised Payslip</i> 벤치마킹.
+        명세서 텍스트를 붙여넣으면 근로기준법 §48 필수 기재사항·최저임금·수당·4대보험을 자동 검증합니다.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="card lg:col-span-2">
+        <h2 class="font-semibold mb-2">명세서 입력</h2>
+        <p class="text-xs text-slate-500 mb-2">
+            이미지/PDF는 OCR 후 텍스트로, 또는 사업장에서 받은 메일·앱 텍스트 그대로 붙여넣기.
+        </p>
+        <textarea id="ps-text" rows="12" class="input w-full font-mono text-xs"
+                  placeholder="예) 2025년 4월 임금명세서&#10;성명: 홍길동&#10;지급일: 2025-05-10&#10;기본급: 1,800,000원&#10;연장근로수당: 200,000원&#10;...&#10;공제총액: 200,000원&#10;실수령: 1,800,000원"></textarea>
+        <div class="grid grid-cols-3 gap-2 mt-3">
+            <div><label class="text-xs text-slate-500">연도</label>
+                <select id="ps-year" class="input w-full"></select></div>
+            <div><label class="text-xs text-slate-500">시급(선택)</label>
+                <input id="ps-hourly" type="number" class="input w-full" /></div>
+            <div><label class="text-xs text-slate-500">주당 근로시간(선택)</label>
+                <input id="ps-hours" type="number" step="0.5" class="input w-full" placeholder="40" /></div>
+        </div>
+        <button onclick="analyze()" class="btn-primary w-full mt-3 py-2">검사 실행</button>
+        <div class="text-xs text-slate-500 mt-2">
+            샘플:
+            <button class="text-blue-600 underline" onclick="seedNormal()">정상 명세서</button>
+            <button class="text-blue-600 underline ml-1" onclick="seedBad()">위반 의심 명세서</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="font-semibold mb-2">검사 결과</h2>
+        <div class="text-center py-3">
+            <div class="text-xs text-slate-500">위반/누락 항목</div>
+            <div id="ps-count" class="text-4xl font-bold mono">-</div>
+            <div id="ps-high" class="text-sm text-rose-600 mt-1"></div>
+        </div>
+        <div class="border-t pt-3">
+            <div class="text-xs font-semibold mb-2">필수 기재 (§48)</div>
+            <div id="ps-required" class="text-xs space-y-1"></div>
+        </div>
+        <div class="border-t pt-3 mt-3">
+            <div class="text-xs font-semibold mb-2">4대보험·세금 공제</div>
+            <div id="ps-insurance" class="text-xs space-y-1"></div>
+        </div>
+    </div>
+</section>
+
+<section class="card mt-6 hidden" id="issues-card">
+    <h2 class="font-semibold mb-3">위반·의심 항목</h2>
+    <ul id="ps-issues" class="text-sm space-y-2"></ul>
+</section>
+
+<section class="card mt-6 hidden" id="amounts-card">
+    <h2 class="font-semibold mb-3">자동 추출 금액</h2>
+    <div id="ps-amounts" class="grid grid-cols-2 md:grid-cols-5 gap-2"></div>
+</section>
+
+<script>
+async function loadYears() {
+    const m = await fetch('/api/wage/min-wage').then(r => r.json());
+    document.getElementById('ps-year').innerHTML = Object.keys(m.history).reverse().map(y =>
+        `<option value="${y}" ${parseInt(y) === m.default_year ? 'selected' : ''}>${y}년</option>`).join('');
+}
+
+function seedNormal() {
+    document.getElementById('ps-text').value = `2025년 04월 임금명세서
+성명: 홍길동 (생년월일: 1992-05-12)
+사원번호: A-2025-0123
+임금지급일: 2025-05-10
+근로시간: 주 40시간
+
+[지급항목]
+기본급:        1,860,000원 (월 209h × 시급 9,860원)
+연장근로수당:    200,000원 (10h × 시급 × 1.5)
+야간근로수당:     30,000원
+주휴수당:        78,880원 (8h × 시급)
+식대:           100,000원
+지급총액:     2,268,880원
+
+[공제항목]
+국민연금:       103,000원
+건강보험:        87,400원
+장기요양:        11,300원
+고용보험:        20,000원
+소득세:          21,000원
+지방소득세:       2,100원
+공제총액:       244,800원
+
+실수령액:    2,024,080원`;
+}
+
+function seedBad() {
+    document.getElementById('ps-text').value = `급여 명세
+지급액: 1,500,000원
+실수령: 1,500,000원`;
+}
+
+async function analyze() {
+    const txt = document.getElementById('ps-text').value;
+    if (!txt.trim()) { alert('명세서 텍스트 입력'); return; }
+    const r = await fetch('/api/payslip/analyze', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify({
+            text: txt,
+            year: parseInt(document.getElementById('ps-year').value),
+            hourly_wage: parseInt(document.getElementById('ps-hourly').value || '0') || null,
+            weekly_hours: parseFloat(document.getElementById('ps-hours').value || '0') || null,
+        }),
+    }).then(r => r.json());
+
+    if (!r.available) {
+        document.getElementById('ps-count').textContent = '-';
+        document.getElementById('ps-high').textContent = r.reason || '';
+        return;
+    }
+
+    document.getElementById('ps-count').textContent = r.n_issues;
+    document.getElementById('ps-count').className = 'text-4xl font-bold mono ' +
+        (r.high_count > 0 ? 'text-rose-600' : r.n_issues > 0 ? 'text-amber-600' : 'text-emerald-600');
+    document.getElementById('ps-high').textContent = r.high_count > 0 ? `🚨 high ${r.high_count}건` : (r.n_issues === 0 ? '✓ 위반 없음' : '');
+
+    const renderField = (k, v) => `
+        <div class="flex justify-between">
+            <span>${k}</span>
+            <span class="${v ? 'text-emerald-600' : 'text-rose-600 font-semibold'}">${v ? '✓' : '✗ 누락'}</span>
+        </div>`;
+    const reqKeys = ['성명','생년월일','임금지급일','임금총액','기본급','공제총액','실수령액'];
+    document.getElementById('ps-required').innerHTML = reqKeys.map(k => renderField(k, r.found[k])).join('');
+    const insKeys = ['국민연금','건강보험','장기요양','고용보험','소득세','지방소득세'];
+    document.getElementById('ps-insurance').innerHTML = insKeys.map(k => renderField(k, r.found[k])).join('');
+
+    // issues
+    if (r.issues.length) {
+        document.getElementById('issues-card').classList.remove('hidden');
+        document.getElementById('ps-issues').innerHTML = r.issues.map(i => `
+            <li class="border-l-4 ${i.severity === 'high' ? 'border-rose-500 bg-rose-50' : i.severity === 'medium' ? 'border-amber-500 bg-amber-50' : 'border-slate-300 bg-slate-50'} p-3 rounded-r">
+                <div class="flex justify-between items-start gap-2">
+                    <div class="flex-1">
+                        <div class="font-medium">${i.label}</div>
+                        <div class="text-xs text-slate-600 mt-1">${i.law || ''}</div>
+                    </div>
+                    <span class="chip ${i.severity === 'high' ? 'chip-high' : i.severity === 'medium' ? 'chip-med' : 'chip-flat'}">${i.severity}</span>
+                </div>
+            </li>`).join('');
+    } else {
+        document.getElementById('issues-card').classList.add('hidden');
+    }
+
+    // amounts
+    const amts = r.extracted_amounts || {};
+    if (Object.values(amts).some(v => v != null)) {
+        document.getElementById('amounts-card').classList.remove('hidden');
+        document.getElementById('ps-amounts').innerHTML = Object.entries(amts).map(([k, v]) => `
+            <div class="border rounded-lg p-2 text-center">
+                <div class="text-xs text-slate-500">${k}</div>
+                <div class="text-sm font-bold mono">${v != null ? v.toLocaleString() + '원' : '-'}</div>
+            </div>`).join('');
+    } else {
+        document.getElementById('amounts-card').classList.add('hidden');
+    }
+}
+
+loadYears();
+</script>
+{% endblock %}

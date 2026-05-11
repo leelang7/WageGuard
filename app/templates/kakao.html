@@ -1,0 +1,133 @@
+﻿{% extends "base.html" %}
+{% block title %}카카오톡 신고 봇{% endblock %}
+{% block content %}
+<div class="mb-4 max-w-md mx-auto md:mx-0">
+    <h1 class="text-xl font-bold">💛 카카오톡 신고 봇 (시뮬)</h1>
+    <p class="text-xs text-slate-600 mt-1">
+        카카오톡 인터페이스로 신고 흐름 시연. 실제 카톡 봇은 카카오 비즈니스 등록 후 연동 가능.
+    </p>
+</div>
+
+<div class="max-w-md mx-auto md:mx-0 bg-yellow-100 rounded-3xl shadow-xl overflow-hidden border-4 border-yellow-200">
+    <div class="bg-yellow-300 p-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center text-lg">📡</div>
+            <div>
+                <div class="font-bold text-sm">WageGuard 임금체불 도우미</div>
+                <div class="text-[10px] text-yellow-900 opacity-80">고용노동부 (안)</div>
+            </div>
+        </div>
+        <div class="text-xs text-yellow-900 opacity-70">자동 응답</div>
+    </div>
+
+    <div id="chat-area" class="bg-yellow-50 p-3 h-[480px] overflow-y-auto space-y-2 text-sm">
+        <!-- 메시지 동적 추가 -->
+    </div>
+
+    <div class="bg-white p-2 flex gap-2">
+        <input id="kakao-input" class="flex-1 border rounded-full px-3 py-1.5 text-sm" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter')send()" />
+        <button onclick="send()" class="bg-yellow-400 px-3 rounded-full text-sm font-semibold">전송</button>
+    </div>
+</div>
+
+<div class="max-w-md mx-auto md:mx-0 mt-4 text-xs text-slate-500">
+    <div class="font-semibold mb-1">시연 시나리오:</div>
+    <ol class="list-decimal list-inside space-y-0.5">
+        <li>"안녕" 또는 임의 입력 → 자동 인사</li>
+        <li>"신고" → 신고 흐름 시작</li>
+        <li>회사명 입력 → 위험도 자동 응답</li>
+        <li>"체불액" → 계산기 안내</li>
+        <li>"진정서" → PDF 다운 링크</li>
+    </ol>
+</div>
+
+<script>
+function bubble(text, side, opts) {
+    const div = document.createElement('div');
+    div.className = side === 'left'
+        ? 'flex justify-start'
+        : 'flex justify-end';
+    const inner = document.createElement('div');
+    inner.className = side === 'left'
+        ? 'bg-white rounded-2xl rounded-tl-sm px-3 py-2 max-w-[85%] shadow-sm'
+        : 'bg-yellow-300 rounded-2xl rounded-tr-sm px-3 py-2 max-w-[85%] shadow-sm';
+    inner.innerHTML = text;
+    div.appendChild(inner);
+    document.getElementById('chat-area').appendChild(div);
+    document.getElementById('chat-area').scrollTop = 1e6;
+}
+
+const intro = `안녕하세요! <b>WageGuard 임금체불 도우미</b>입니다 📡<br><br>
+다음 중 하나를 입력해 주세요:<br>
+• <b>신고</b> — 임금체불 신고 시작<br>
+• <b>회사명</b> (예: 효성컴퓨터학원) — 사업장 위험도 즉시 조회<br>
+• <b>체불액</b> — 자동 계산기로 이동<br>
+• <b>명세서</b> — 임금명세서 검사<br>
+• <b>1350</b> — 고용노동부 종합상담 안내`;
+
+bubble(intro, 'left');
+
+async function send() {
+    const v = document.getElementById('kakao-input').value.trim();
+    if (!v) return;
+    bubble(v, 'right');
+    document.getElementById('kakao-input').value = '';
+
+    setTimeout(() => respond(v), 400);
+}
+
+async function respond(msg) {
+    const m = msg.toLowerCase();
+    if (/^신고|^report/.test(m)) {
+        bubble(`신고 시작 — 사업장명을 입력해 주세요. (예: <b>효성컴퓨터학원</b>)`, 'left');
+        bubble(`👉 정식 신고 + 증빙 첨부: <a href="/cases" class="text-blue-600 underline">WageGuard 신고 페이지</a>`, 'left');
+        return;
+    }
+    if (/체불액|계산/.test(m)) {
+        bubble(`체불액 자동계산 — 시급·출퇴근 입력하면 정상 임금과 차액을 자동 산출합니다.<br>
+            👉 <a href="/wage-calc" class="text-blue-600 underline">체불액 계산기</a>`, 'left');
+        return;
+    }
+    if (/명세서|payslip/.test(m)) {
+        bubble(`임금명세서 자동검사 — 텍스트 붙여넣으면 §48 위반·최저임금·4대보험 누락 자동 검출.<br>
+            👉 <a href="/payslip-check" class="text-blue-600 underline">명세서 검사</a>`, 'left');
+        return;
+    }
+    if (/1350|상담|노동부/.test(m)) {
+        bubble(`고용노동부 1350 종합상담 — <b>전화 1350</b> · <a href="https://www.moel.go.kr" target="_blank" class="text-blue-600 underline">www.moel.go.kr</a><br>
+            평일 09:00~18:00 무료. 외국인 근로자 13개 언어 지원.`, 'left');
+        return;
+    }
+    if (/안녕|hi|hello|시작/.test(m)) {
+        bubble(`반갑습니다! 사업장명을 입력하시면 임금 안전 점수와 위험 신호를 즉시 조회해 드릴게요.`, 'left');
+        return;
+    }
+
+    // 사업장명으로 가정 — API 호출
+    bubble('사업장 정보 조회 중...', 'left');
+    try {
+        const r = await fetch('/api/me/profile/' + encodeURIComponent(msg)).then(r => r.json());
+        const s = r.safety;
+        const sm = r.summary;
+        let html = `📊 <b>${msg}</b> 임금 안전 점수<br><br>`;
+        html += `<div style="font-size:48px;font-weight:bold;color:${s.color};text-align:center">${s.score}</div>`;
+        html += `<div style="text-align:center;color:${s.color};font-weight:bold;margin-bottom:6px">${s.grade} · ${s.label}</div>`;
+        html += `<div class="text-xs">• 명단 매칭: ${sm.list_match}건<br>`;
+        html += `• 누적 신고: ${sm.n_cases}건<br>`;
+        html += `• 신호: ${sm.n_signals}건<br>`;
+        html += `• 다음 임금일까지: ${r.next_payday_d_day}일</div>`;
+        if (r.today_actions && r.today_actions.length) {
+            html += `<br><b class="text-xs">📌 오늘 해야 할 일</b><ul class="text-xs mt-1 space-y-0.5">`;
+            for (const a of r.today_actions.slice(0, 3)) {
+                html += `<li>${a.icon} ${a.text.slice(0, 50)}</li>`;
+            }
+            html += `</ul>`;
+        }
+        html += `<br>👉 <a href="/me?q=${encodeURIComponent(msg)}" class="text-blue-600 underline">전체 결과 보기</a>`;
+        bubble(html, 'left');
+    } catch (e) {
+        bubble(`조회 실패. 다시 시도해 주세요.`, 'left');
+    }
+}
+</script>
+{% endblock %}

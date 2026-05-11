@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}감독관 큐{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <h1 class="text-xl font-bold">감독관 점검 우선순위</h1>
+        <p class="text-sm text-slate-600 mt-1">관할 지역의 점검 우선순위를 자동 산출합니다 · 셀 위험점수 × 동일대표자 그룹 × 체불액</p>
+    </div>
+    <select id="sup-region" onchange="load()" class="border rounded px-3 py-1.5 text-sm"></select>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="stat-card">
+        <h2 class="font-semibold mb-3">고위험 셀 (이 지역)</h2>
+        <table class="w-full text-sm">
+            <thead class="text-slate-500 text-left">
+                <tr>
+                    <th class="py-2">업종</th>
+                    <th class="py-2 text-right">점수</th>
+                    <th class="py-2 text-right">건수</th>
+                    <th class="py-2 text-right">평균 체불액</th>
+                </tr>
+            </thead>
+            <tbody id="sup-cells"></tbody>
+        </table>
+    </div>
+
+    <div class="stat-card">
+        <h2 class="font-semibold mb-3">다중 운영자 (재범 위험)</h2>
+        <table class="w-full text-sm">
+            <thead class="text-slate-500 text-left">
+                <tr>
+                    <th class="py-2">대표자</th>
+                    <th class="py-2 text-right">사업장 수</th>
+                    <th class="py-2 text-right">총 체불액</th>
+                </tr>
+            </thead>
+            <tbody id="sup-ops"></tbody>
+        </table>
+    </div>
+</section>
+
+<section class="stat-card">
+    <h2 class="font-semibold mb-3">점검 우선순위 큐 <span class="text-xs text-slate-400 ml-2" id="sup-qcount"></span></h2>
+    <table class="w-full text-sm">
+        <thead class="text-slate-500 text-left">
+            <tr>
+                <th class="py-2">순위</th>
+                <th class="py-2">사업장</th>
+                <th class="py-2">대표자</th>
+                <th class="py-2">업종</th>
+                <th class="py-2 text-right">대표 운영 사업장 수</th>
+                <th class="py-2 text-right">체불액</th>
+                <th class="py-2">차수</th>
+            </tr>
+        </thead>
+        <tbody id="sup-queue"></tbody>
+    </table>
+</section>
+
+<script>
+async function loadRegions() {
+    const rs = await fetch('/api/supervisor/regions').then(r => r.json());
+    const sel = document.getElementById('sup-region');
+    sel.innerHTML = '<option value="">전체</option>' + rs.map(r => `<option value="${r}">${r}</option>`).join('');
+    load();
+}
+
+async function load() {
+    const reg = document.getElementById('sup-region').value;
+    const url = '/api/supervisor/queue' + (reg ? `?region=${encodeURIComponent(reg)}` : '');
+    const d = await fetch(url).then(r => r.json());
+
+    document.getElementById('sup-cells').innerHTML = (d.cells || []).slice(0, 8).map(c => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2">${c.industry}</td>
+            <td class="py-2 text-right"><span class="px-2 py-0.5 rounded text-xs font-semibold ${c.risk_score >= 70 ? 'bg-rose-100 text-rose-700' : c.risk_score >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">${c.risk_score}</span></td>
+            <td class="py-2 text-right">${c.count}</td>
+            <td class="py-2 text-right">${fmtKRW(c.avg_amt)}원</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('sup-ops').innerHTML = (d.multi_operators || []).map(o => `
+        <tr class="border-t border-slate-100">
+            <td class="py-2">${o.name} <span class="text-xs text-slate-400">(${o.age})</span></td>
+            <td class="py-2 text-right"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs font-semibold">${o.n}</span></td>
+            <td class="py-2 text-right">${fmtKRW(o.total)}원</td>
+        </tr>
+    `).join('') || '<tr><td colspan="3" class="py-3 text-center text-slate-400">해당 지역에 다중 운영자 없음</td></tr>';
+
+    document.getElementById('sup-queue').innerHTML = (d.queue || []).map((q, i) => `
+        <tr class="border-t border-slate-100 ${q.operator_size > 1 ? 'bg-rose-50/50' : ''}">
+            <td class="py-2 font-mono">${i + 1}</td>
+            <td class="py-2 font-medium">${q.company}</td>
+            <td class="py-2">${q.name} <span class="text-xs text-slate-400">(${q.age})</span></td>
+            <td class="py-2">${q.industry}</td>
+            <td class="py-2 text-right">${q.operator_size > 1 ? `<span class="text-rose-600 font-bold">${q.operator_size}</span>` : q.operator_size}</td>
+            <td class="py-2 text-right">${fmtKRWFull(q.amount)}</td>
+            <td class="py-2 text-xs">${q.round}</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('sup-qcount').textContent = `총 ${d.n_queue}건`;
+}
+
+loadRegions();
+</script>
+{% endblock %}

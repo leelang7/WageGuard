@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% block title %}대시보드{% endblock %}
+{% block content %}
+
+<!-- ① HERO — 한 줄 설명 + 즉시 체험 검색창 -->
+<section class="rounded-3xl overflow-hidden mb-6" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%)">
+    <div class="px-8 pt-8 pb-6 text-white">
+
+        <!-- 태그라인 -->
+        <div class="text-[11px] font-semibold tracking-[0.15em] text-indigo-300 uppercase mb-3">
+            고용노동부 · 한국장애인고용공단 · 한국고용정보원 등 17개 공공데이터 연동
+        </div>
+
+        <!-- 핵심 문장 -->
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight mb-2">
+            임금체불 위험 사업장<br>
+            <span class="text-indigo-300">AI가 먼저 찾아드립니다</span>
+        </h1>
+        <p class="text-slate-300 text-sm md:text-base mb-6 max-w-xl">
+            8기관 공공 데이터 교차 분석으로 전국 사업장의 임금체불 위험도를 자동 정렬합니다.
+            장애인 근로자 우선 보호 · 체불 <b class="text-white">3~6개월 전 선행 탐지</b>.
+        </p>
+
+        <!-- 인라인 검증 검색창 -->
+        <div class="flex gap-2 max-w-xl mb-6">
+            <input id="hero-input" type="text"
+                   placeholder="사업장명 입력 → 7개 API 즉시 실시간 검증"
+                   class="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white/15 transition" />
+            <button onclick="goVerify()"
+                    class="bg-rose-500 hover:bg-rose-400 active:bg-rose-600 text-white font-bold px-5 py-3 rounded-xl text-sm transition whitespace-nowrap">
+                🔴 LIVE 검증
+            </button>
+        </div>
+        <script>
+        function goVerify() {
+            const q = document.getElementById('hero-input').value.trim();
+            location.href = '/verify' + (q ? '?q=' + encodeURIComponent(q) : '');
+        }
+        document.getElementById('hero-input').addEventListener('keydown', e => { if (e.key === 'Enter') goVerify(); });
+        </script>
+
+        <!-- KPI 숫자 4개 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-white/8 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/12 transition" onclick="location.href='/triage'">
+                <div class="text-2xl font-extrabold text-rose-400 mono" id="kpi-high">…</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">고위험 사업장</div>
+            </div>
+            <div class="bg-white/8 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/12 transition" onclick="location.href='/triage'">
+                <div class="text-2xl font-extrabold text-amber-300 mono" id="kpi-med">…</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">주의 사업장</div>
+            </div>
+            <div class="bg-white/8 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/12 transition" onclick="location.href='/pension'">
+                <div class="text-2xl font-extrabold text-blue-300 mono" id="kpi-nps">…</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">NPS 이상징후</div>
+            </div>
+            <div class="bg-white/8 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/12 transition" onclick="location.href='/ml'">
+                <div class="text-2xl font-extrabold text-emerald-300 mono" id="kpi-f1">…</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">ML K-fold F1</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ② 3대 핵심 기능 — 크고 명확하게 -->
+<section class="grid md:grid-cols-3 gap-4 mb-6">
+
+    <!-- 점검 우선순위 -->
+    <a href="/triage" class="group no-underline rounded-2xl border-2 border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50 p-6 flex flex-col gap-3 transition shadow-sm hover:shadow-md">
+        <div class="text-3xl">🎯</div>
+        <div>
+            <div class="text-lg font-extrabold text-slate-900 group-hover:text-indigo-700 tracking-tight">점검 우선순위</div>
+            <div class="text-xs text-slate-500 mt-1">어떤 사업장을 먼저 점검할지 AI가 정렬</div>
+        </div>
+        <div class="text-sm text-slate-700 flex-1">
+            전국 <span id="feat-total" class="font-bold text-slate-900">…</span>개 사업장 중
+            <span id="feat-high" class="font-extrabold text-rose-600">…</span>개 고위험을
+            의심도 순으로 자동 정렬합니다.
+        </div>
+        <div class="mt-auto flex items-center justify-between">
+            <span class="text-xs text-slate-400">8기관 교차 분석</span>
+            <span class="text-sm font-bold text-indigo-600 group-hover:translate-x-1 transition-transform inline-block">우선순위 보기 →</span>
+        </div>
+    </a>
+
+    <!-- LIVE 검증 -->
+    <a href="/verify" class="group no-underline rounded-2xl border-2 border-slate-200 hover:border-rose-400 bg-white hover:bg-rose-50 p-6 flex flex-col gap-3 transition shadow-sm hover:shadow-md">
+        <div class="flex items-center gap-2">
+            <div class="text-3xl">🔴</div>
+            <div class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
+        </div>
+        <div>
+            <div class="text-lg font-extrabold text-slate-900 group-hover:text-rose-700 tracking-tight">LIVE 실시간 검증</div>
+            <div class="text-xs text-slate-500 mt-1">사업장명 입력 → 즉시 7개 API 동시 호출</div>
+        </div>
+        <div class="text-sm text-slate-700 flex-1">
+            체불명단 · 국세청 · 네이버 · Google · NPS · DART 재무위험을
+            <b>SSE 스트리밍</b>으로 실시간 표시합니다.
+        </div>
+        <div class="mt-auto flex items-center justify-between">
+            <span class="text-xs text-slate-400">정적 보고서 아닌 작동 시스템</span>
+            <span class="text-sm font-bold text-rose-600 group-hover:translate-x-1 transition-transform inline-block">지금 시연 →</span>
+        </div>
+    </a>
+
+    <!-- 장애인 우선 보호 -->
+    <a href="/disability" class="group no-underline rounded-2xl border-2 border-slate-200 hover:border-violet-400 bg-white hover:bg-violet-50 p-6 flex flex-col gap-3 transition shadow-sm hover:shadow-md">
+        <div class="text-3xl">♿</div>
+        <div>
+            <div class="text-lg font-extrabold text-slate-900 group-hover:text-violet-700 tracking-tight">장애인 우선 보호</div>
+            <div class="text-xs text-slate-500 mt-1">KEAD·고용정보원 7개 기관 데이터 직접 결합</div>
+        </div>
+        <div class="text-sm text-slate-700 flex-1">
+            장애인 근로자 활동 사업장에 위험점수 25% 가산.
+            한국장애인고용공단 3개 + 고용정보원 4개 데이터셋 <b>7개 인증 완료</b>.
+        </div>
+        <div class="mt-auto flex items-center justify-between">
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">7개 기관 인증</span>
+            <span class="text-sm font-bold text-violet-600 group-hover:translate-x-1 transition-transform inline-block">KEAD 모듈 →</span>
+        </div>
+    </a>
+
+</section>
+
+<!-- ③ 즉시 점검 TOP 5 + 신고 -->
+<section class="grid md:grid-cols-3 gap-4 mb-6">
+
+    <div class="md:col-span-2 card">
+        <div class="flex items-center justify-between mb-1">
+            <div class="font-bold text-slate-800">점검 우선순위 AI 분류 TOP 5</div>
+            <a href="/triage" class="text-xs text-indigo-600 hover:underline font-medium">전체 리스트 →</a>
+        </div>
+        <div class="text-[10px] text-slate-400 mb-2">※ 아래 점수는 공개 체불명단·재무공시·NPS 기반 AI 위험 예측값이며, 확정 위반 사실이 아닙니다. 실제 처분은 운영주체(근로감독관·KEAD) 판단에 따릅니다.</div>
+        <div id="top5-list" class="space-y-1">
+            <div class="text-xs text-slate-400 py-4 text-center">로드 중…</div>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-3">
+        <!-- 신고 CTA -->
+        <a href="/신고" class="flex-1 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white p-5 flex flex-col gap-2 no-underline transition">
+            <div class="text-2xl">✍</div>
+            <div class="font-extrabold text-lg tracking-tight">임금체불 신고</div>
+            <div class="text-xs text-rose-200">체불 당하셨나요? 익명으로 신고하세요. 누적 신뢰도 자동 산출.</div>
+        </a>
+        <!-- 운영 가이드 -->
+        <a href="/judge" class="rounded-2xl border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 p-4 flex items-center gap-3 no-underline transition">
+            <span class="text-2xl">📋</span>
+            <div>
+                <div class="font-bold text-amber-900 text-sm">운영 가이드</div>
+                <div class="text-xs text-amber-700 mt-0.5">체크리스트 · API 원클릭 확인</div>
+            </div>
+        </a>
+    </div>
+
+</section>
+
+<!-- ④ 선행지표 3종 + AI 성능 -->
+<section class="grid md:grid-cols-2 gap-4 mb-6">
+
+    <!-- 선행지표 3종 -->
+    <div class="card">
+        <div class="font-bold text-slate-800 mb-1">체불 발생 <span class="text-rose-600">3~6개월 전</span> 선행 탐지</div>
+        <div class="text-xs text-slate-500 mb-3">적발이 아닌 예방 — 재무·가입자·보험 신호로 먼저 포착</div>
+        <div class="space-y-2">
+            <a href="/dart" class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition no-underline group">
+                <span class="text-xl">📊</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-slate-800 group-hover:text-indigo-700">DART 재무위험</div>
+                    <div class="text-xs text-slate-500 truncate"><span id="feat-dart" class="font-bold text-indigo-600">546</span>건 · 부채비율·영업손실·자본잠식 분석</div>
+                </div>
+                <span class="text-xs text-slate-400 group-hover:text-indigo-500">→</span>
+            </a>
+            <a href="/pension" class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border border-transparent transition no-underline group">
+                <span class="text-xl">📈</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-slate-800 group-hover:text-blue-700">NPS 가입자 이탈 신호</div>
+                    <div class="text-xs text-slate-500 truncate">20,000개 사업장 · 월별 Z-score 이상 경보</div>
+                </div>
+                <span class="text-xs text-slate-400 group-hover:text-blue-500">→</span>
+            </a>
+            <a href="/insurance-cross" class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 border border-transparent transition no-underline group">
+                <span class="text-xl">🔗</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-slate-800 group-hover:text-emerald-700">4대보험 삼각검증</div>
+                    <div class="text-xs text-slate-500 truncate">NPS × 건보 × 채용공고 교차 — 유령사업장 탐지</div>
+                </div>
+                <span class="text-xs text-slate-400 group-hover:text-emerald-500">→</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- AI 성능 + 업종 차트 -->
+    <div class="card">
+        <div class="font-bold text-slate-800 mb-3">AI 탐지 성능</div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+            <div class="bg-indigo-50 rounded-xl p-3 text-center">
+                <div class="text-xs text-indigo-600 mb-1">Track B · K-fold F1</div>
+                <div class="text-2xl font-extrabold text-indigo-700 mono" id="ai-cv">…</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">실DB 기반 교차검증</div>
+            </div>
+            <div class="bg-rose-50 rounded-xl p-3 text-center">
+                <div class="text-xs text-rose-600 mb-1">Track A · SDK F1</div>
+                <div class="text-2xl font-extrabold text-rose-700 mono">0.864</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">부정수급 실시간 차단</div>
+            </div>
+        </div>
+        <div class="text-xs text-slate-500 mb-2">위험 업종 TOP 6</div>
+        <div id="chart-industry" style="height:130px;"></div>
+    </div>
+
+</section>
+
+<!-- ⑤ 지역 타일맵 + 연도 추이 -->
+<section class="grid md:grid-cols-2 gap-4">
+    <div class="card">
+        <div class="flex items-center justify-between mb-2">
+            <div class="font-bold text-slate-800">지역별 체불 분포</div>
+            <div class="text-[11px] text-slate-400">클릭 → 해당 지역 triage 필터</div>
+        </div>
+        <div id="chart-region" style="min-height:200px;"></div>
+    </div>
+    <div class="card">
+        <div class="font-bold text-slate-800 mb-3">연도별 체불 명단 등재 추이</div>
+        <div id="chart-trend" style="height:160px;"></div>
+        <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div>
+                <div class="text-xs text-slate-400">모니터링 전체</div>
+                <div class="text-lg font-extrabold mono text-slate-700" id="stat-total">…</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400">DART 위험법인</div>
+                <div class="text-lg font-extrabold mono text-indigo-700" id="stat-dart">…</div>
+            </div>
+            <div>
+                <div class="text-xs text-slate-400">신고 접수</div>
+                <div class="text-lg font-extrabold mono text-rose-600" id="stat-cases">…</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+const C_HIGH = 65, C_MED = 40;
+const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+async function loadDashboard() {
+    const [stats, triage, mlAb, dartCache] = await Promise.all([
+        fetch('/api/home/stats').then(r => r.json()).catch(() => ({})),
+        fetch('/api/triage/dashboard?top_n=20').then(r => r.json()).catch(() => ({ results: [], total_candidates: 0 })),
+        fetch('/api/ml/ablation').then(r => r.json()).catch(() => ({})),
+        fetch('/api/dart/risk-cache?limit=1').then(r => r.json()).catch(() => ({})),
+    ]);
+
+    const results = triage.results || [];
+    const highCnt = triage.total_high || stats.high_approx || 0;
+    const medCnt  = triage.total_med  || stats.med_approx  || 0;
+    const totalMon = stats.total_monitored || 0;
+
+    // Hero KPIs
+    set('kpi-high', highCnt.toLocaleString());
+    set('kpi-med',  medCnt.toLocaleString());
+    set('kpi-nps',  (stats.nps_alert || 0).toLocaleString());
+    if (mlAb.available && mlAb.with_kead_9_features) {
+        set('kpi-f1', mlAb.with_kead_9_features.mean_f1.toFixed(3));
+        set('ai-cv',  mlAb.with_kead_9_features.mean_f1.toFixed(3));
+    }
+
+    // Feature card numbers
+    set('feat-total', totalMon.toLocaleString());
+    set('feat-high',  highCnt.toLocaleString());
+    set('feat-dart',  (dartCache.count || 546).toLocaleString());
+
+    // Bottom stats
+    set('stat-total', totalMon.toLocaleString());
+    set('stat-dart',  (dartCache.count || 546).toLocaleString());
+    set('stat-cases', (stats.cases || 0).toLocaleString());
+
+    // TOP 5
+    const top5 = results.slice(0, 5);
+    document.getElementById('top5-list').innerHTML = top5.length ? top5.map((r, i) => {
+        const s = r.suspicion_score;
+        const barW = s;
+        const barC = s >= C_HIGH ? '#e11d48' : s >= C_MED ? '#f59e0b' : '#94a3b8';
+        const cls = s >= C_HIGH ? 'chip-high' : s >= C_MED ? 'chip-med' : 'chip-flat';
+        return `<div class="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0 cursor-pointer rounded-lg px-2 hover:bg-indigo-50 transition"
+            data-biz="${(r.business||'').replace(/"/g,'&quot;')}" onclick="location.href='/verify?q='+encodeURIComponent(this.dataset.biz)">
+            <span class="text-[11px] text-slate-300 font-mono w-4 text-center">${i+1}</span>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-slate-900 truncate">${maskBiz(r.business)}</div>
+                <div class="flex items-center gap-1 mt-0.5">
+                    <div style="width:${Math.min(barW, 100)}px;height:3px;background:${barC};border-radius:2px;"></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="chip ${cls} text-[10px]">${s}점</span>
+                <span class="text-[11px] text-slate-400">${r.industry||''}</span>
+            </div>
+        </div>`;
+    }).join('') : '<div class="text-xs text-slate-400 py-4 text-center">데이터 로드 중…</div>';
+
+    // 업종 차트
+    const indData = (stats.by_industry || []).slice(0, 6);
+    const indLabels = indData.map(d => d.industry.replace(/\s*및\s*/g,'·').slice(0,8)).reverse();
+    const indVals   = indData.map(d => d.cnt).reverse();
+    if (indVals.length) {
+        echarts.init(document.getElementById('chart-industry')).setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 72, right: 28, top: 4, bottom: 4, containLabel: false },
+            xAxis: { type: 'value', show: false },
+            yAxis: { type: 'category', data: indLabels, axisLabel: { fontSize: 10, color: '#64748b' }, axisTick: { show: false }, axisLine: { show: false } },
+            series: [{ type: 'bar', data: indVals, barMaxWidth: 14,
+                itemStyle: { borderRadius: [0,4,4,0], color: p => {
+                    const t = p.value / Math.max(...indVals, 1);
+                    return t > 0.65 ? '#e11d48' : t > 0.35 ? '#f59e0b' : '#6366f1';
+                }},
+                label: { show: true, position: 'right', fontSize: 9, color: '#94a3b8', formatter: '{c}건' }
+            }]
+        });
+    }
+
+    // 지역 타일맵
+    const rgData = (stats.by_region || []).map(d => ({ region: d.region, count: d.cnt }));
+    if (rgData.length) {
+        KoreaTileMap.render('chart-region', rgData, {
+            onClick: region => location.href = '/triage?region=' + encodeURIComponent(region)
+        });
+    }
+
+    // 연도 추이
+    const yrData = stats.by_year || [];
+    if (yrData.length) {
+        echarts.init(document.getElementById('chart-trend')).setOption({
+            tooltip: { trigger: 'axis', formatter: p => `${p[0].axisValue}년 · ${p[0].value}건` },
+            grid: { left: 32, right: 8, top: 10, bottom: 24 },
+            xAxis: { type: 'category', data: yrData.map(d => d.year), axisLabel: { fontSize: 10 } },
+            yAxis: { type: 'value', axisLabel: { fontSize: 9 } },
+            series: [{ type: 'bar', data: yrData.map(d => d.cnt),
+                itemStyle: { color: p => p.value >= 200 ? '#e11d48' : '#6366f1', borderRadius: [3,3,0,0] },
+                label: { show: true, position: 'top', fontSize: 8, color: '#94a3b8' }
+            }]
+        });
+    }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

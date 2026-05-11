@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}월별 임금 체크인{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold">📆 월별 임금 체크인</h1>
+    <p class="text-sm text-slate-600 mt-1">
+        매월 1탭으로 임금 받았는지 체크하세요. <b>같은 사업장 동료 여러 명이 미수령으로 등록하면 즉시 강한 위험 신호</b>가 됩니다.
+        사업주 자가인증과 자동 대조해 거짓 신고도 잡힙니다.
+    </p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="card lg:col-span-1">
+        <h2 class="font-semibold mb-3">이번 달 체크인</h2>
+        <form id="ck-form" class="space-y-3">
+            <div><label class="text-xs text-slate-500">사업장명 *</label><input id="ck-co" class="input w-full" required /></div>
+            <div><label class="text-xs text-slate-500">연락처 (해시 후 저장) *</label><input id="ck-contact" class="input w-full" placeholder="010-... 또는 이메일" required /></div>
+            <div><label class="text-xs text-slate-500">기간 *</label><input id="ck-period" type="month" class="input w-full" required /></div>
+
+            <div class="border-t pt-3">
+                <div class="text-sm font-semibold mb-2">이번 달 임금 받으셨나요?</div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <label class="border rounded p-2 cursor-pointer hover:bg-slate-50"><input type="radio" name="status" value="received" /> ✅ 정상 수령</label>
+                    <label class="border rounded p-2 cursor-pointer hover:bg-slate-50"><input type="radio" name="status" value="late" /> ⏰ 지연 수령</label>
+                    <label class="border rounded p-2 cursor-pointer hover:bg-slate-50"><input type="radio" name="status" value="partial" /> 🟡 일부만</label>
+                    <label class="border rounded p-2 cursor-pointer hover:bg-rose-50"><input type="radio" name="status" value="unpaid" /> 🚨 미수령</label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs text-slate-500">받은 금액(원, 선택)</label><input id="ck-amt" type="number" class="input w-full" /></div>
+                <div><label class="text-xs text-slate-500">받은 날짜(선택)</label><input id="ck-paid" type="date" class="input w-full" /></div>
+            </div>
+            <div><label class="text-xs text-slate-500">예정 지급일(선택)</label><input id="ck-exp" type="date" class="input w-full" /></div>
+            <div><label class="text-xs text-slate-500">메모(선택)</label><textarea id="ck-note" rows="2" class="input w-full"></textarea></div>
+
+            <button type="button" onclick="submitCk()" class="btn-primary w-full">체크인 제출</button>
+            <p class="text-[11px] text-slate-500">연락처는 해시(SHA-256 16자)만 저장 — 시스템에 평문 보관 X. 동일 기간 동일 사용자 중복 차단.</p>
+        </form>
+    </div>
+
+    <div class="card lg:col-span-2">
+        <h2 class="font-semibold mb-3">사업장 cohort 조회 — 같은 사업장 다른 동료들의 보고</h2>
+        <div class="flex gap-2 mb-3">
+            <input id="q-co" class="input flex-1" placeholder="사업장명" />
+            <input id="q-pd" type="month" class="input" />
+            <button onclick="loadCohort()" class="btn-ghost">조회</button>
+        </div>
+        <div id="cohort-result" class="text-sm">
+            <div class="text-slate-400">사업장명 입력 후 조회.</div>
+        </div>
+    </div>
+</section>
+
+<section class="card mt-6">
+    <h2 class="font-semibold mb-3">🚨 미수령·지연·일부 보고 누적 사업장 (사용자 측 사전 탐지)</h2>
+    <table class="t">
+        <thead><tr>
+            <th>사업장</th>
+            <th class="text-right">미수령</th><th class="text-right">지연</th><th class="text-right">일부</th>
+            <th class="text-right">총 보고</th><th class="text-right">서로 다른 근로자</th><th>최근 기간</th>
+        </tr></thead>
+        <tbody id="topu-rows"><tr><td colspan="7" class="py-4 text-center text-slate-400">로드 중…</td></tr></tbody>
+    </table>
+</section>
+
+<script>
+async function submitCk() {
+    const status = document.querySelector('input[name=status]:checked')?.value;
+    if (!status) { alert('수령 상태 선택'); return; }
+    const inp = {
+        company: document.getElementById('ck-co').value.trim(),
+        contact: document.getElementById('ck-contact').value.trim(),
+        period_ym: document.getElementById('ck-period').value || '',
+        status,
+        paid_amount: parseInt(document.getElementById('ck-amt').value || '0'),
+        paid_date: document.getElementById('ck-paid').value || null,
+        expected_date: document.getElementById('ck-exp').value || null,
+        note: document.getElementById('ck-note').value.trim() || null,
+    };
+    if (!inp.company || !inp.contact || !inp.period_ym) { alert('필수 항목'); return; }
+    const r = await fetch('/api/checkin/submit', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify(inp),
+    });
+    if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        alert('실패: ' + (e.detail || r.status)); return;
+    }
+    const d = await r.json();
+    let msg = '체크인 완료\n';
+    if (d.cohort) {
+        msg += `같은 사업장 다른 보고: 총 ${d.cohort.total}건 (미수령 ${d.cohort.by_status?.unpaid||0})\n`;
+        if (d.cohort.consistency_label) msg += d.cohort.consistency_label;
+    }
+    alert(msg);
+    document.getElementById('q-co').value = inp.company;
+    document.getElementById('q-pd').value = inp.period_ym;
+    loadCohort();
+    loadTopUnpaid();
+}
+
+async function loadCohort() {
+    const co = document.getElementById('q-co').value.trim();
+    if (!co) return;
+    const pd = document.getElementById('q-pd').value;
+    const url = '/api/checkin/cohort/' + encodeURIComponent(co) + (pd ? '?period_ym=' + pd : '');
+    const r = await fetch(url).then(r => r.json());
+    let html = `
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div class="border rounded p-2 text-center"><div class="text-xs text-slate-500">총 보고</div><div class="text-2xl font-bold">${r.total}</div></div>
+            <div class="border rounded p-2 text-center"><div class="text-xs text-slate-500">미수령</div><div class="text-2xl font-bold text-rose-600">${r.by_status?.unpaid || 0}</div></div>
+            <div class="border rounded p-2 text-center"><div class="text-xs text-slate-500">지연</div><div class="text-2xl font-bold text-amber-600">${r.by_status?.late || 0}</div></div>
+            <div class="border rounded p-2 text-center"><div class="text-xs text-slate-500">미수령 비율</div><div class="text-2xl font-bold">${(r.unpaid_ratio*100).toFixed(0)}%</div></div>
+        </div>`;
+    if (r.consistency_label) {
+        const cls = r.consistency === 'MISMATCH' ? 'bg-rose-50 border-rose-300 text-rose-800'
+                  : r.consistency === 'MATCH'    ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                                 : 'bg-amber-50 border-amber-300 text-amber-800';
+        html += `<div class="border rounded p-3 ${cls}"><b>일치도 검증</b>: ${r.consistency_label}</div>`;
+    }
+    if (r.owner_attestation) {
+        const a = r.owner_attestation;
+        html += `<div class="text-xs text-slate-500 mt-2">사업주 자가인증: ${a.period_ym} 지급총액 ${a.paid_total?.toLocaleString()||0}원 / 직원 ${a.employee_count||0}</div>`;
+    }
+    document.getElementById('cohort-result').innerHTML = html;
+}
+
+async function loadTopUnpaid() {
+    const list = await fetch('/api/checkin/_top-unpaid').then(r => r.json());
+    document.getElementById('topu-rows').innerHTML = list.length ? list.map(r => `
+        <tr>
+            <td class="font-medium">${r.company}</td>
+            <td class="text-right text-rose-600 font-bold">${r.unpaid}</td>
+            <td class="text-right text-amber-600">${r.late}</td>
+            <td class="text-right">${r.partial}</td>
+            <td class="text-right">${r.total}</td>
+            <td class="text-right">${r.distinct_workers}</td>
+            <td class="text-xs">${r.last_period}</td>
+        </tr>`).join('') : '<tr><td colspan="7" class="py-4 text-center text-slate-400">아직 보고 없음</td></tr>';
+}
+
+loadTopUnpaid();
+</script>
+{% endblock %}

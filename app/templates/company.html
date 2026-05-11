@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}{{ company_name }} 통합 프로필{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h1 class="text-xl font-bold" id="cp-title">사업장 통합 프로필</h1>
+    <p class="text-sm text-slate-600 mt-1" id="cp-subtitle">로드 중…</p>
+</div>
+
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="card">
+        <div class="text-xs text-slate-500">종합 위험점수</div>
+        <div id="cp-risk" class="text-6xl font-bold mono mt-2 text-slate-700">-</div>
+        <div id="cp-level" class="text-sm mt-1"></div>
+        <div class="mt-3 border-t pt-3" id="cp-factors"></div>
+    </div>
+
+    <div class="card lg:col-span-2">
+        <h2 class="font-semibold mb-3">신호 도메인</h2>
+        <div id="cp-domains" class="grid grid-cols-2 md:grid-cols-3 gap-2"></div>
+        <div class="mt-3 border-t pt-3 grid grid-cols-3 gap-2 text-center text-sm">
+            <div><div class="text-xs text-slate-500">신뢰도(신고)</div><div id="cp-trust" class="text-2xl font-bold">-</div></div>
+            <div><div class="text-xs text-slate-500">신고 케이스</div><div id="cp-cases-n" class="text-2xl font-bold">-</div></div>
+            <div><div class="text-xs text-slate-500">워치 등록</div><div id="cp-watch" class="text-2xl font-bold">-</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card">
+        <h2 class="font-semibold mb-3">⚠ 체불사업주 명단 매칭</h2>
+        <div id="cp-hits" class="text-sm">로드 중…</div>
+    </div>
+    <div class="card">
+        <h2 class="font-semibold mb-3">🔗 동일 대표자 다른 사업장</h2>
+        <div id="cp-related" class="text-sm">로드 중…</div>
+    </div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">📊 셀(업종 × 지역) 위험도</h2>
+    <div id="cp-cell" class="text-sm">-</div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">📨 신고 케이스 (최근 30)</h2>
+    <table class="t">
+        <thead><tr>
+            <th>사건번호</th><th>신고자</th><th class="text-right">위험점수</th>
+            <th class="text-right">추정액</th><th>상태</th><th>일자</th>
+        </tr></thead>
+        <tbody id="cp-cases"></tbody>
+    </table>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">🏛 국민연금 색인 매칭</h2>
+    <div id="cp-nps" class="text-sm">로드 중…</div>
+</section>
+
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card">
+        <h2 class="font-semibold mb-3">📊 DART 재무위험 (체불 선행지표)</h2>
+        <div id="cp-dart" class="text-sm text-slate-500">조회 중…</div>
+    </div>
+    <div class="card">
+        <h2 class="font-semibold mb-3">🔗 4대보험 삼각검증</h2>
+        <div id="cp-cross" class="text-sm text-slate-500">조회 중…</div>
+    </div>
+</section>
+
+<section class="card mb-6">
+    <h2 class="font-semibold mb-3">📡 신호 시계열 (도메인별)</h2>
+    <div id="cp-timeline" style="height:280px;"></div>
+</section>
+
+<section class="card">
+    <h2 class="font-semibold mb-3">🛠 액션</h2>
+    <div class="flex gap-2 flex-wrap">
+        <a id="cp-act-diag" class="btn-primary" href="#">사업장 진단으로 이동</a>
+        <a id="cp-act-watch" class="btn-ghost" href="/watch">워치 등록</a>
+        <a id="cp-act-case" class="btn-danger" href="/cases">신고 + 증빙</a>
+        <a id="cp-act-wage" class="btn-ghost" href="/wage-calc">체불액 계산</a>
+    </div>
+</section>
+
+<script>
+const COMPANY = {{ company_name|tojson }};
+
+const DOMAIN_META = {
+    pay_default: {l: '임금체불', c: 'bg-rose-100 text-rose-700'},
+    hiring:      {l: '채용·회전율', c: 'bg-amber-100 text-amber-700'},
+    closure:     {l: '폐업·축소', c: 'bg-slate-200 text-slate-700'},
+    finance:     {l: '자금난', c: 'bg-violet-100 text-violet-700'},
+    reputation:  {l: '평판', c: 'bg-blue-100 text-blue-700'},
+    meta:        {l: '관심', c: 'bg-slate-100 text-slate-500'},
+};
+
+const STATUS_LABEL = {received:'접수',investigating:'조사 중',resolved:'처분 완료',dismissed:'종결'};
+
+async function load() {
+    const r = await fetch('/api/company/' + encodeURIComponent(COMPANY)).then(r => r.json());
+
+    document.getElementById('cp-title').textContent = `${r.company} — 사업장 통합 프로필`;
+    document.getElementById('cp-subtitle').textContent =
+        `${r.industry || '업종 미상'} · ${r.region || '지역 미상'} · 신호 ${r.n_signals} · 도메인 ${r.distinct_domains.length}`;
+
+    const risk = r.risk_score;
+    const sc = document.getElementById('cp-risk');
+    sc.textContent = risk;
+    sc.className = `text-6xl font-bold mono mt-2 ${risk >= 70 ? 'text-rose-600' : risk >= 40 ? 'text-amber-600' : 'text-emerald-600'}`;
+    document.getElementById('cp-level').textContent = risk >= 70 ? '🚨 고위험' : risk >= 40 ? '⚠ 중위험' : '저위험';
+
+    document.getElementById('cp-factors').innerHTML = (r.risk_factors||[]).map(f => `
+        <div class="flex justify-between text-sm py-1">
+            <span class="text-slate-700">${f.label}</span>
+            <span class="font-mono text-rose-600">+${f.weight}</span>
+        </div>`).join('') || '<div class="text-xs text-slate-400">신호 없음</div>';
+
+    // 도메인 카드
+    const domains = ['pay_default','hiring','closure','finance','reputation'];
+    const counts = {};
+    for (const s of r.signals) counts[s.domain] = (counts[s.domain]||0) + 1;
+    document.getElementById('cp-domains').innerHTML = domains.map(d => {
+        const m = DOMAIN_META[d];
+        const n = counts[d] || 0;
+        return `<div class="border rounded-lg p-3 ${n ? '' : 'opacity-40'}">
+            <div class="text-xs text-slate-500">${m.l}</div>
+            <div class="text-2xl font-bold ${n ? 'text-slate-900' : 'text-slate-400'}">${n}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('cp-trust').textContent = r.trust_score;
+    document.getElementById('cp-cases-n').textContent = r.cases.length;
+    document.getElementById('cp-watch').textContent = r.watch_count;
+
+    // 명단 매칭
+    document.getElementById('cp-hits').innerHTML = r.hits.length ? r.hits.map(h => `
+        <div class="border-l-4 border-rose-500 pl-3 mb-2">
+            <div class="font-semibold">${h.round} · ${h.company}</div>
+            <div class="text-xs text-slate-500">${h.name} (${h.age}세) · ${h.industry} · ${h.region} · ${fmtKRWFull(h.amount)}</div>
+        </div>`).join('') : '<div class="text-slate-400">매칭 없음</div>';
+
+    // 관련 사업장
+    document.getElementById('cp-related').innerHTML = r.related.length ? r.related.map(rl => `
+        <div class="border rounded p-2 mb-2 text-sm">
+            <div class="font-medium">${rl.company}</div>
+            <div class="text-xs text-slate-500">${rl.operator}(${rl.operator_age}) · ${rl.round} · ${fmtKRWFull(rl.amount)}</div>
+        </div>`).join('') : '<div class="text-slate-400">없음</div>';
+
+    // 셀
+    if (r.cell) {
+        document.getElementById('cp-cell').innerHTML = `
+            <div class="grid grid-cols-4 gap-3 text-center">
+                <div><div class="text-xs text-slate-500">셀</div><div class="font-semibold">${r.cell.industry} / ${r.cell.region}</div></div>
+                <div><div class="text-xs text-slate-500">위험점수</div><div class="text-2xl font-bold">${r.cell.risk_score}</div></div>
+                <div><div class="text-xs text-slate-500">셀 내 건수</div><div class="text-2xl font-bold">${r.cell.count}</div></div>
+                <div><div class="text-xs text-slate-500">평균</div><div class="font-semibold">${fmtKRW(r.cell.avg_amt)}원</div></div>
+            </div>`;
+    } else {
+        document.getElementById('cp-cell').innerHTML = '<div class="text-slate-400">셀 매칭 없음</div>';
+    }
+
+    // 케이스
+    document.getElementById('cp-cases').innerHTML = r.cases.length ? r.cases.map(c => `
+        <tr>
+            <td class="font-mono text-xs">${c.case_no}</td>
+            <td>${c.is_anonymous ? '익명' : c.reporter_name}</td>
+            <td class="text-right">${c.risk_score}</td>
+            <td class="text-right">${fmtKRWFull(c.amount_estimated || 0)}</td>
+            <td>${STATUS_LABEL[c.status] || c.status}</td>
+            <td class="text-xs">${(c.created_at||'').slice(0,16).replace('T',' ')}</td>
+        </tr>`).join('') : '<tr><td colspan="6" class="py-4 text-center text-slate-400">신고 없음</td></tr>';
+
+    // NPS
+    document.getElementById('cp-nps').innerHTML = r.nps.length ? r.nps.map(n => `
+        <div class="border rounded p-2 mb-1 text-sm">
+            <div class="font-medium">${n.wkpl_nm} <span class="text-xs text-slate-400">${n.bzowr_rgst_no || '-'}</span></div>
+            <div class="text-xs text-slate-500">가입 ${n.subscriber_cnt} · 신규 ${n.new_cnt} · 상실 ${n.lost_cnt} · 평균보수 ${fmtKRW(n.avg_pay)}원</div>
+        </div>`).join('') : '<div class="text-slate-400 text-xs">로컬 NPS CSV 미적재 또는 매칭 없음 (samples/에 국민연금 CSV 두면 자동 색인)</div>';
+
+    // timeline
+    const tlByDate = {};
+    for (const s of r.signals || []) {
+        const day = (s.created_at || '').slice(0, 10);
+        const dom = s.domain || 'meta';
+        tlByDate[day] = tlByDate[day] || {};
+        tlByDate[day][dom] = (tlByDate[day][dom] || 0) + 1;
+    }
+    const days = Object.keys(tlByDate).sort();
+    if (days.length) {
+        const colors = {pay_default:'#dc2626', hiring:'#f59e0b', closure:'#64748b', finance:'#7c3aed', reputation:'#3b82f6', meta:'#cbd5e1'};
+        const labels = DOMAIN_META;
+        const series = ['pay_default','hiring','closure','finance','reputation','meta'].map(dom => ({
+            name: labels[dom].l, type: 'bar', stack: 'total',
+            data: days.map(d => tlByDate[d][dom] || 0),
+            itemStyle: {color: colors[dom]},
+        })).filter(s => s.data.some(v => v > 0));
+        const chart = echarts.init(document.getElementById('cp-timeline'));
+        chart.setOption({
+            tooltip: {trigger: 'axis'},
+            legend: {textStyle: {fontSize: 11}},
+            grid: {left: 40, right: 20, top: 30, bottom: 30},
+            xAxis: {type: 'category', data: days},
+            yAxis: {type: 'value'},
+            series,
+        });
+    } else {
+        document.getElementById('cp-timeline').innerHTML = '<div class="text-slate-400 text-sm py-12 text-center">시그널 없음</div>';
+    }
+
+    // 액션 링크
+    document.getElementById('cp-act-diag').href = '/business?q=' + encodeURIComponent(COMPANY);
+    document.getElementById('cp-act-case').href = '/cases?prefill=company&name=' + encodeURIComponent(COMPANY);
+}
+
+async function loadDart() {
+    try {
+        const r = await fetch(`/api/dart/diagnose?company=${encodeURIComponent(COMPANY)}&add_to_cluster=false`).then(r => r.json());
+        if (!r.available) {
+            document.getElementById('cp-dart').innerHTML = `<div class="text-xs text-slate-400">${r.reason || 'DART 미조회'}</div>`;
+            return;
+        }
+        const fin = r.financials || {};
+        const dc = r.risk_score >= 60 ? 'rose' : r.risk_score >= 30 ? 'amber' : 'emerald';
+        document.getElementById('cp-dart').innerHTML = `
+            <div class="flex items-center gap-4 mb-3">
+                <div class="text-4xl font-bold mono text-${dc}-600">${r.risk_score}</div>
+                <div class="text-xs">
+                    <div class="font-semibold text-${dc}-700">${r.risk_score >= 60 ? '⚠ 고위험' : r.risk_score >= 30 ? '주의' : '정상 범위'}</div>
+                    <div class="text-slate-500">${r.year || ''}년 재무</div>
+                </div>
+            </div>
+            <table class="t text-xs"><tbody>
+                <tr><td>부채비율</td><td class="mono">${fin.debt_ratio != null ? fin.debt_ratio.toFixed(1)+'%' : 'N/A'}</td></tr>
+                <tr><td>영업이익</td><td class="mono ${fin.op_income < 0 ? 'text-red-600' : ''}">${fin.op_income != null ? (fin.op_income/1e8).toFixed(1)+'억' : 'N/A'}</td></tr>
+                <tr><td>유동비율</td><td class="mono">${fin.current_ratio != null ? fin.current_ratio.toFixed(1)+'%' : 'N/A'}</td></tr>
+            </tbody></table>
+            ${(r.signals || []).length ? '<div class="mt-2 text-xs text-rose-700">' + r.signals.map(s => s.label).join(' · ') + '</div>' : ''}
+            <div class="mt-2"><a href="/dart" class="text-xs text-indigo-600 hover:underline">→ DART 상세 분석</a></div>`;
+    } catch (e) {
+        document.getElementById('cp-dart').textContent = '조회 오류';
+    }
+}
+
+async function loadCross() {
+    try {
+        const r = await fetch(`/api/insurance-cross/scan?company=${encodeURIComponent(COMPANY)}`).then(r => r.json());
+        if (!r.available) {
+            document.getElementById('cp-cross').innerHTML = `<div class="text-xs text-slate-400">${r.reason || '조회 불가'}</div>`;
+            return;
+        }
+        const src = r.sources || {};
+        const cc = r.risk_score >= 50 ? 'rose' : r.risk_score >= 25 ? 'amber' : 'emerald';
+        document.getElementById('cp-cross').innerHTML = `
+            <div class="flex items-center gap-4 mb-3">
+                <div class="text-4xl font-bold mono text-${cc}-600">${r.risk_score}</div>
+                <div class="text-xs text-slate-500">NPS×건보×채용 교차</div>
+            </div>
+            <table class="t text-xs"><tbody>
+                <tr><td>NPS 가입자</td><td class="mono">${src.nps_subscribers ?? 'N/A'}명</td></tr>
+                <tr><td>건보 직장가입자</td><td class="mono">${src.nhis_subscribers ?? 'N/A'}명</td></tr>
+                <tr><td>채용공고</td><td class="mono">${src.job_posting_signals ?? 0}건</td></tr>
+            </tbody></table>
+            ${(r.signals || []).length ? '<div class="mt-2 text-xs text-rose-700">' + r.signals.map(s => s.label).join(' · ') + '</div>' : '<div class="mt-2 text-xs text-emerald-700">불일치 신호 없음</div>'}
+            <div class="mt-2"><a href="/insurance-cross" class="text-xs text-indigo-600 hover:underline">→ 삼각검증 상세</a></div>`;
+    } catch (e) {
+        document.getElementById('cp-cross').textContent = '조회 오류';
+    }
+}
+
+load();
+loadDart();
+loadCross();
+</script>
+{% endblock %}

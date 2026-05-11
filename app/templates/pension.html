@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}NPS 국민연금 고위험 사업장 분석{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <div class="flex items-baseline gap-2 flex-wrap">
+        <h1 class="text-xl font-bold">📈 NPS 국민연금 — 고위험 사업장 포착</h1>
+        <span class="chip chip-high">체불 선행지표</span>
+        <span class="chip chip-med">20,000개 사업장</span>
+    </div>
+    <p class="text-sm text-slate-600 mt-1">
+        이탈률(상실/가입자) 고위험 + 저임금 사업장을 자동 포착.
+        공개 체불명단보다 <b>3~6개월 선행</b> 탐지 — 위험점수 = 이탈률×60 + 저임금지수×40.
+    </p>
+</div>
+
+<!-- KPI 배너 -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div class="card text-center py-3">
+        <div class="text-2xl font-bold text-indigo-600" id="kpi-total">—</div>
+        <div class="text-xs text-slate-500 mt-1">전체 적재 사업장</div>
+    </div>
+    <div class="card text-center py-3">
+        <div class="text-2xl font-bold text-rose-600" id="kpi-alert">—</div>
+        <div class="text-xs text-slate-500 mt-1">고위험 사업장</div>
+    </div>
+    <div class="card text-center py-3">
+        <div class="text-2xl font-bold text-amber-600" id="kpi-toprisk-score">—</div>
+        <div class="text-xs text-slate-500 mt-1">최고 위험점수</div>
+    </div>
+    <div class="card text-center py-3">
+        <div class="text-2xl font-bold text-emerald-600" id="kpi-avg-pay">—</div>
+        <div class="text-xs text-slate-500 mt-1">평균 보수월액</div>
+    </div>
+</div>
+
+<!-- 고위험 사업장 순위 -->
+<section class="card mb-4 border-l-4 border-rose-500">
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 class="font-semibold">🚨 고위험 사업장 TOP 20 <span class="text-xs font-normal text-slate-400">(이탈률 + 저임금 복합점수 · 202504 스냅샷)</span></h2>
+        <button onclick="loadTopRisk()" class="btn-ghost btn-sm">새로고침</button>
+    </div>
+    <div id="top-risk-loading" class="text-slate-400 text-sm py-4 text-center">로딩 중…</div>
+    <div id="top-risk-wrap" class="hidden">
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+            <div id="chart-churn" style="height:260px;"></div>
+            <div id="chart-pay" style="height:260px;"></div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-slate-200 text-slate-500">
+                        <th class="text-left py-2 px-2">순위</th>
+                        <th class="text-left py-2 px-2">사업장명</th>
+                        <th class="text-left py-2 px-2 hidden md:table-cell">지역</th>
+                        <th class="text-left py-2 px-2 hidden md:table-cell">업종</th>
+                        <th class="text-right py-2 px-2">가입자</th>
+                        <th class="text-right py-2 px-2">이탈률</th>
+                        <th class="text-right py-2 px-2">평균보수</th>
+                        <th class="text-right py-2 px-2">위험점수</th>
+                    </tr>
+                </thead>
+                <tbody id="top-risk-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- 사업장 검색 (시계열) -->
+<section class="card mb-4 border-l-4 border-blue-500">
+    <h2 class="font-semibold mb-3">🔍 사업장 개별 조회</h2>
+    <div class="flex gap-2 flex-wrap">
+        <input id="nps-company" type="text" placeholder="사업장명 입력" class="input flex-1 min-w-[180px]" />
+        <button onclick="runTimeseries()" class="btn-primary">조회</button>
+        <button onclick="setNPS('센트롤')" class="btn-ghost btn-sm">센트롤</button>
+        <button onclick="setNPS('JS건설')" class="btn-ghost btn-sm">JS건설</button>
+        <button onclick="setNPS('한빛요양원')" class="btn-ghost btn-sm">한빛요양원</button>
+    </div>
+    <div id="nps-result" class="mt-4 text-sm text-slate-500">사업장명을 입력하거나 위 고위험 목록에서 클릭하세요.</div>
+    <div id="nps-chart" style="height:300px; display:none;"></div>
+</section>
+
+<!-- Z-score 해설 -->
+<section class="card mb-4 border-l-4 border-indigo-500">
+    <h2 class="font-semibold mb-3">🧠 위험 탐지 기준</h2>
+    <div class="grid md:grid-cols-3 gap-3 text-sm">
+        <div class="bg-red-50 border border-red-200 rounded p-3">
+            <div class="font-semibold text-red-700">위험점수 ≥ 70</div>
+            <div class="text-xs text-slate-600 mt-1">이탈률 ≥50% 또는 최저임금 50% 미만 — 즉시 점검 대상.</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded p-3">
+            <div class="font-semibold text-amber-700">위험점수 40~70</div>
+            <div class="text-xs text-slate-600 mt-1">이탈률 30~50% + 저임금 복합 — 2주 이내 현장 확인 권장.</div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded p-3">
+            <div class="font-semibold text-blue-700">Z-score &lt; -2.0</div>
+            <div class="text-xs text-slate-600 mt-1">월별 가입자 수 급감 — 다중 월 데이터 적재 시 자동 경보 발동.</div>
+        </div>
+    </div>
+</section>
+
+<script>
+let _chart = null, _churnChart = null, _payChart = null;
+
+/* ── 고위험 TOP 20 ── */
+async function loadTopRisk() {
+    try {
+        const r = await fetch('/api/pension/top-risk?limit=20').then(r => r.json());
+        if (!r.available || !r.items || !r.items.length) {
+            document.getElementById('top-risk-loading').textContent = '데이터 없음';
+            return;
+        }
+        document.getElementById('top-risk-loading').classList.add('hidden');
+        document.getElementById('top-risk-wrap').classList.remove('hidden');
+
+        // KPI
+        document.getElementById('kpi-toprisk-score').textContent = r.items[0].risk_score;
+        const avgPay = Math.round(r.items.reduce((s, x) => s + x.avg_pay, 0) / r.items.length);
+        document.getElementById('kpi-avg-pay').textContent = (avgPay / 10000).toFixed(0) + '만원';
+
+        // Table
+        const tbody = document.getElementById('top-risk-tbody');
+        tbody.innerHTML = r.items.map((it, i) => {
+            const scoreColor = it.risk_score >= 70 ? 'text-rose-700 font-bold' :
+                               it.risk_score >= 40 ? 'text-amber-700 font-semibold' : 'text-slate-600';
+            const payFmt = (it.avg_pay / 10000).toFixed(0) + '만';
+            return `<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="setNPS('${it.name.replace(/'/g,"\\'")}')">
+                <td class="py-2 px-2 text-slate-400">${i + 1}</td>
+                <td class="py-2 px-2 font-medium text-indigo-700">${it.name}</td>
+                <td class="py-2 px-2 text-slate-500 hidden md:table-cell">${it.region || '—'}</td>
+                <td class="py-2 px-2 text-slate-500 hidden md:table-cell">${it.industry || '—'}</td>
+                <td class="py-2 px-2 text-right">${it.subscribers}</td>
+                <td class="py-2 px-2 text-right text-rose-700 font-semibold">${it.churn_pct}%</td>
+                <td class="py-2 px-2 text-right">${payFmt}</td>
+                <td class="py-2 px-2 text-right ${scoreColor}">
+                    <div class="flex items-center justify-end gap-1">
+                        <div class="w-12 bg-slate-100 rounded-full h-1.5">
+                            <div class="h-1.5 rounded-full ${it.risk_score >= 70 ? 'bg-rose-500' : 'bg-amber-400'}" style="width:${it.risk_score}%"></div>
+                        </div>
+                        ${it.risk_score}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Charts
+        renderChurnChart(r.items.slice(0, 10));
+        renderPayChart(r.items.slice(0, 10));
+    } catch (e) {
+        document.getElementById('top-risk-loading').textContent = '로드 실패: ' + (e.message || e);
+    }
+}
+
+function renderChurnChart(items) {
+    const el = document.getElementById('chart-churn');
+    if (!_churnChart) _churnChart = echarts.init(el);
+    const names = items.map(it => it.name.length > 8 ? it.name.slice(0, 8) + '…' : it.name).reverse();
+    const churns = items.map(it => it.churn_pct).reverse();
+    _churnChart.setOption({
+        title: {text: '이탈률 TOP 10 (%)', left: 'center', textStyle: {fontSize: 12}},
+        tooltip: {trigger: 'axis', formatter: p => `${p[0].name}<br/>이탈률 ${p[0].value}%`},
+        grid: {left: 90, right: 20, top: 35, bottom: 10},
+        xAxis: {type: 'value', axisLabel: {fontSize: 10}, max: 100},
+        yAxis: {type: 'category', data: names, axisLabel: {fontSize: 10}},
+        series: [{
+            type: 'bar', data: churns,
+            itemStyle: {color: p => p.value >= 70 ? '#dc2626' : p.value >= 40 ? '#f59e0b' : '#6366f1'},
+            label: {show: true, position: 'right', fontSize: 10, formatter: '{c}%'},
+        }],
+    });
+}
+
+function renderPayChart(items) {
+    const el = document.getElementById('chart-pay');
+    if (!_payChart) _payChart = echarts.init(el);
+    const sorted = [...items].sort((a, b) => a.avg_pay - b.avg_pay);
+    const names = sorted.map(it => it.name.length > 8 ? it.name.slice(0, 8) + '…' : it.name);
+    const pays = sorted.map(it => Math.round(it.avg_pay / 10000));
+    _payChart.setOption({
+        title: {text: '평균 보수월액 (만원)', left: 'center', textStyle: {fontSize: 12}},
+        tooltip: {trigger: 'axis', formatter: p => `${p[0].name}<br/>${p[0].value}만원`},
+        grid: {left: 90, right: 20, top: 35, bottom: 10},
+        xAxis: {type: 'value', axisLabel: {fontSize: 10}},
+        yAxis: {type: 'category', data: names, axisLabel: {fontSize: 10}},
+        series: [{
+            type: 'bar', data: pays,
+            itemStyle: {color: p => p.value < 100 ? '#dc2626' : p.value < 150 ? '#f59e0b' : '#10b981'},
+            label: {show: true, position: 'right', fontSize: 10, formatter: '{c}만'},
+            markLine: {
+                data: [{xAxis: 206, name: '최저임금'}],
+                lineStyle: {color: '#6366f1', type: 'dashed'},
+                label: {formatter: '최저임금\n206만'},
+            },
+        }],
+    });
+}
+
+/* ── 사업장 시계열 조회 ── */
+function setNPS(name) {
+    document.getElementById('nps-company').value = name;
+    runTimeseries();
+    document.getElementById('nps-company').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+async function runTimeseries() {
+    const company = document.getElementById('nps-company').value.trim();
+    if (!company) return;
+    document.getElementById('nps-result').innerHTML = '<div class="text-slate-400">조회 중…</div>';
+    document.getElementById('nps-chart').style.display = 'none';
+
+    let r;
+    try {
+        r = await fetch(`/api/pension/timeseries?q=${encodeURIComponent(company)}`).then(r => r.json());
+    } catch (e) {
+        document.getElementById('nps-result').innerHTML =
+            `<div class="text-rose-700 bg-rose-50 border border-rose-200 rounded p-3">네트워크 오류: ${e.message || e}</div>`;
+        return;
+    }
+
+    if (!r.available) {
+        // 실 시계열 없음 → 체불사업주 기반 데모 시계열 시도
+        let demo;
+        try { demo = await fetch(`/api/pension/demo-timeseries?company=${encodeURIComponent(company)}`).then(r => r.json()); } catch(_) {}
+        if (demo && demo.available) {
+            renderTimeseriesChart(demo, true);
+            return;
+        }
+        document.getElementById('nps-result').innerHTML =
+            `<div class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                <b>다중 시계열 없음</b> (스냅샷 1개월 데이터) — 아래 스캔으로 단일 시점 신호 조회.
+                <div class="text-xs mt-1">${r.reason || ''}</div>
+            </div>`;
+        runScan(company);
+        return;
+    }
+
+    renderTimeseriesChart(r, false);
+}
+
+function renderTimeseriesChart(r, isDemo) {
+    const series = r.series || [], alerts = r.alerts || [], trend = r.trend;
+    let html = '';
+    if (isDemo) {
+        html += `<div class="text-xs bg-indigo-50 border border-indigo-200 rounded px-3 py-1.5 mb-2 text-indigo-800">
+            🔬 <b>시뮬레이션</b> — ${r.company} (실체불 ${(r.amount_wan||0).toLocaleString()}만원)
+            기반 NPS 선행지표 패턴. 체불 확정(${r.detected_ym}) 3~6개월 전 가입자 감소 패턴.
+            <span class="text-indigo-500">${r.sim_note || ''}</span>
+        </div>`;
+    }
+    html += `<div class="text-xs text-slate-500 mb-2">${series.length}개월 데이터 · Z-score 경보 ${alerts.length}건</div>`;
+    alerts.forEach(a => { html += `<div class="text-xs bg-red-50 border border-red-200 rounded px-3 py-1.5 mb-1 text-red-800">🚨 ${a.label}</div>`; });
+    if (trend) {
+        const tc = trend.severity === 'high' ? 'rose' : 'amber';
+        html += `<div class="text-xs bg-${tc}-50 border border-${tc}-200 rounded px-3 py-1.5 mb-3 text-${tc}-800">📉 ${trend.label}</div>`;
+    }
+    if (!alerts.length && !trend && !isDemo) html += `<div class="text-emerald-700 text-xs mb-2">이상 신호 없음 — 가입자 추이 정상</div>`;
+    document.getElementById('nps-result').innerHTML = html;
+
+    const el = document.getElementById('nps-chart');
+    el.style.display = 'block';
+    if (!_chart) _chart = echarts.init(el);
+    const months = series.map(s => s.ym || '');
+    const subs = series.map(s => s.subscribers || s.subscriber_cnt || 0);
+    const zs = series.map(s => s.zscore || 0);
+    const alertSet = new Set(alerts.map(a => a.ym));
+    const markLines = [{yAxis: -2, name: '급감 기준'}, {yAxis: -1.5, name: '주의'}];
+    if (isDemo && r.detected_ym) markLines.push({xAxis: r.detected_ym, name: '체불 적발', lineStyle: {color: '#dc2626', width: 2}, label: {color: '#dc2626', formatter: '체불\n적발'}});
+    _chart.setOption({
+        tooltip: {trigger: 'axis', formatter: p => {
+            const ym = p[0].axisValue;
+            const z = (series.find(s => s.ym === ym) || {}).zscore ?? '';
+            return `${ym}<br/>가입자 ${p[0].value}명<br/>Z-score ${z}`;
+        }},
+        legend: {data: ['가입자수', 'Z-score'], top: 5},
+        grid: {left: 50, right: 50, top: 40, bottom: 40},
+        xAxis: {type: 'category', data: months, axisLabel: {fontSize: 10}},
+        yAxis: [
+            {type: 'value', name: '가입자', position: 'left'},
+            {type: 'value', name: 'Z-score', position: 'right', min: -4, max: 4},
+        ],
+        series: [
+            {name: '가입자수', type: 'bar', data: subs, yAxisIndex: 0,
+                itemStyle: {color: p => alertSet.has(months[p.dataIndex]) ? '#dc2626' : '#6366f1'}},
+            {name: 'Z-score', type: 'line', data: zs, yAxisIndex: 1,
+                lineStyle: {color: '#f59e0b', width: 2}, itemStyle: {color: '#f59e0b'},
+                markLine: {data: markLines, lineStyle: {color: '#dc2626', type: 'dashed'}, label: {formatter: '{b}'}}},
+        ],
+    });
+}
+
+async function runScan(company) {
+    try {
+        const r = await fetch('/api/pension/scan?q=' + encodeURIComponent(company)).then(r => r.json());
+        if (!r.available || !r.summary || !r.summary.length) return;
+        const it = r.summary[0];
+        const churn = it.churn_pct ?? '—';
+        const pay = it.avg_pay ? (it.avg_pay / 10000).toFixed(0) + '만원' : '—';
+        const sev = r.overall_severity;
+        const color = sev === 'high' ? 'rose' : sev === 'medium' ? 'amber' : 'emerald';
+        let extra = '';
+        (it.warnings || []).forEach(w => {
+            extra += `<div class="text-xs text-${color}-700 mt-1">⚠ ${w.sig}</div>`;
+        });
+        const existing = document.getElementById('nps-result').innerHTML;
+        document.getElementById('nps-result').innerHTML = existing +
+            `<div class="mt-3 bg-${color}-50 border border-${color}-200 rounded p-3 text-sm">
+                <b>${it.wkplNm}</b> — 가입자 ${it.jnngpCnt}명 · 이탈 ${it.lost}명 · 이탈률 ${churn}% · 평균 ${pay}
+                ${extra}
+            </div>`;
+    } catch (_) {}
+}
+
+/* ── 초기화 ── */
+async function initKPI() {
+    try {
+        const r = await fetch('/api/pension/summary').then(r => r.json());
+        document.getElementById('kpi-total').textContent = (r.total_workplaces || 0).toLocaleString();
+        document.getElementById('kpi-alert').textContent = (r.zscore_alert_count || 0).toLocaleString();
+    } catch (_) {}
+}
+
+document.getElementById('nps-company').addEventListener('keydown', e => { if (e.key === 'Enter') runTimeseries(); });
+initKPI();
+loadTopRisk();
+</script>
+{% endblock %}
