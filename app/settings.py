@@ -23,8 +23,8 @@ if os.getenv("WORKNET_KEY"):
     ):
         os.environ.setdefault(_name, os.getenv("WORKNET_KEY", ""))
 
-DATA_DIR = ROOT / "data"
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path(os.getenv("DATA_DIR", str(ROOT / "data")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "wageguard.sqlite"
 
 CASE_FILES_DIR = DATA_DIR / "case_files"
