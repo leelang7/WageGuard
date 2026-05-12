@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}DART 재무위험 분석{% endblock %}
 {% block content %}
 <div class="mb-4">
@@ -94,7 +94,7 @@ async function runDart() {
     const fin = r.financials || {};
     const scoreColor = r.risk_score >= 60 ? 'text-red-600' : r.risk_score >= 30 ? 'text-amber-600' : 'text-emerald-600';
     document.getElementById('dart-result').innerHTML = `
-        <div class="grid md:grid-cols-3 gap-4">
+        <div class="grid md:grid-cols-3 gap-5">
             <div class="col-span-1">
                 <div class="text-center bg-slate-900 text-white rounded-xl p-4">
                     <div class="text-xs opacity-60 mb-1">${r.corp?.corp_name || company}</div>

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}4대보험 삼각검증{% endblock %}
 {% block content %}
 <div class="mb-4">
@@ -112,7 +112,7 @@ function renderCrossResult(r) {
         </div>` : '';
 
     document.getElementById('cross-result').innerHTML = `
-        <div class="grid md:grid-cols-3 gap-4">
+        <div class="grid md:grid-cols-3 gap-5">
             ${demoBanner}
             <div class="text-center bg-slate-900 text-white rounded-xl p-4">
                 <div class="text-xs opacity-60 mb-1">${r.company || ''}</div>

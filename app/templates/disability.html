@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}장애인 근로자 보호{% endblock %}
 {% block content %}
 <section class="space-y-6">
@@ -98,7 +98,7 @@ async function loadOverlay() {
         const r = await fetch('/api/kead/disability-overlay');
         const d = await r.json();
         let html = `
-            <div class="grid md:grid-cols-2 gap-4 mb-4">
+            <div class="grid md:grid-cols-2 gap-5 mb-6">
                 <div class="bg-white border border-rose-100 rounded-xl p-4">
                     <div class="text-xs text-slate-500 mb-1">체불사업주 누적</div>
                     <div class="text-3xl font-extrabold mono">${d.total_defaulters.toLocaleString()}</div>

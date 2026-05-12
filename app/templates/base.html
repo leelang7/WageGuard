@@ -53,10 +53,10 @@
         h1, h2, h3 { letter-spacing: -0.025em; }
 
         /* 카드 */
-        .card { @apply bg-white border border-slate-200 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]; }
-        .card-h { @apply hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-slate-300 transition; }
+        .card { @apply bg-white border border-slate-200 rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]; }
+        .card-h { @apply hover:shadow-[0_4px_16px_rgba(0,0,0,0.07)] hover:border-slate-300 transition; }
         /* 하위 호환 */
-        .stat-card { @apply bg-white border border-slate-200 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]; }
+        .stat-card { @apply bg-white border border-slate-200 rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]; }
 
         /* 버튼 */
         .btn { @apply inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-1; }
@@ -89,9 +89,42 @@
 
         /* 코드/모노 */
         .mono { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+
+        /* 페이지 상단 진행 바 */
+        #pg-bar { position:fixed;top:0;left:0;height:3px;width:0;opacity:0;z-index:9999;pointer-events:none;border-radius:0 2px 2px 0;background:linear-gradient(90deg,#6366f1,#8b5cf6,#a855f7); }
+
+        /* 스켈레톤 shimmer */
+        .sk { display:block;border-radius:6px;background:linear-gradient(90deg,#e2e8f0 25%,#f8fafc 50%,#e2e8f0 75%);background-size:200% 100%;animation:sk-shimmer 1.5s infinite; }
+        .sk-dark { display:block;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.1) 25%,rgba(255,255,255,.22) 50%,rgba(255,255,255,.1) 75%);background-size:200% 100%;animation:sk-shimmer 1.5s infinite; }
+        @keyframes sk-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
     </style>
+    <script>
+    const PgBar = {
+        _t: null,
+        start() {
+            const b = document.getElementById('pg-bar');
+            if (!b) return;
+            clearTimeout(this._t);
+            b.style.transition = 'width 1.8s cubic-bezier(.1,.85,.1,1),opacity .15s';
+            b.style.opacity = '1';
+            b.style.width = '75%';
+        },
+        done() {
+            const b = document.getElementById('pg-bar');
+            if (!b) return;
+            b.style.transition = 'width .15s ease,opacity .3s .15s';
+            b.style.width = '100%';
+            clearTimeout(this._t);
+            this._t = setTimeout(() => {
+                b.style.opacity = '0';
+                setTimeout(() => { b.style.width = '0'; b.style.transition = 'none'; }, 350);
+            }, 150);
+        }
+    };
+    </script>
 </head>
 <body class="bg-slate-50 text-slate-900">
+<div id="pg-bar"></div>
 
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-6 pt-3.5 pb-1.5 flex items-center justify-between gap-4">
@@ -124,53 +157,99 @@
     <div class="max-w-7xl mx-auto px-6 pb-2.5">
         <button class="md:hidden btn-ghost btn-sm w-full mb-2" onclick="document.getElementById('main-nav').classList.toggle('hidden')">☰ 메뉴 열기/닫기</button>
         <nav id="main-nav" class="flex md:flex items-center gap-0.5 flex-wrap hidden md:flex">
-            <!-- 핵심 3개 -->
+            <!-- 핵심 공통 -->
             <a href="/triage"     class="navlink font-semibold {% if active=='triage' %}active{% endif %}">🎯 점검 우선순위</a>
             <a href="/verify"     class="navlink font-semibold {% if active=='verify' %}active{% endif %}">🔴 LIVE 검증</a>
             <a href="/disability" class="navlink font-semibold {% if active=='disability' %}active{% endif %}">♿ 장애인 보호</a>
 
-            <span class="text-slate-200 mx-1">|</span>
+            <span class="text-slate-200 mx-1.5">|</span>
 
-            <a href="/ml"         class="navlink {% if active=='ml' %}active{% endif %}">AI 모델</a>
-            <a href="/evidence"   class="navlink {% if active=='evidence' %}active{% endif %}">임팩트</a>
+            <!-- 역할별 드롭다운 3개 -->
 
-            <!-- 더보기 드롭다운 -->
-            <div class="relative" id="more-menu-wrap">
-                <button onclick="document.getElementById('more-dd').classList.toggle('hidden')"
-                        class="navlink flex items-center gap-1 {% if active in ['m6','m6_embed','dart','pension','insurance_cross','scenario','scalability','audit','demo','operator','judge','reports'] %}active{% endif %}">
-                    더보기 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            <!-- 근로자 -->
+            <div class="relative nav-dd-wrap">
+                <button onclick="toggleDD('dd-worker')"
+                        class="navlink flex items-center gap-1 {% if active in ['selfcheck','wage_calc','report','reports'] %}active{% endif %}">
+                    🙋 근로자
+                    <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
-                <div id="more-dd" class="hidden absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 min-w-[180px]">
-                    <div class="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">선행지표</div>
-                    <a href="/dart"            class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='dart' %}text-indigo-700 font-semibold{% endif %}"><span>📊</span> DART 재무위험</a>
-                    <a href="/pension"         class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='pension' %}text-indigo-700 font-semibold{% endif %}"><span>📈</span> NPS 이탈 신호</a>
-                    <a href="/insurance-cross" class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='insurance_cross' %}text-indigo-700 font-semibold{% endif %}"><span>🔗</span> 4대보험 삼각검증</a>
-                    <div class="border-t border-slate-100 my-1"></div>
-                    <div class="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">신고 · 공개</div>
-                    <a href="/reports"         class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='reports' %}text-indigo-700 font-semibold{% endif %}"><span>📣</span> 공개 신고 집계</a>
-                    <div class="border-t border-slate-100 my-1"></div>
-                    <div class="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">시연 · 분석</div>
-                    <a href="/scenario"        class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='scenario' %}text-indigo-700 font-semibold{% endif %}"><span>📖</span> 시나리오</a>
-                    <a href="/m6"              class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active in ['m6','m6_embed'] %}text-indigo-700 font-semibold{% endif %}"><span>🛡</span> 부정수급 SDK</a>
-                    <a href="/scalability"     class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='scalability' %}text-indigo-700 font-semibold{% endif %}"><span>📡</span> 확산 가능성</a>
-                    <a href="/operator"        class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='operator' %}text-indigo-700 font-semibold{% endif %}"><span>🧑‍💼</span> 운영주체 시뮬</a>
-                    <a href="/audit"           class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='audit' %}text-indigo-700 font-semibold{% endif %}"><span>⚖</span> 자체점검</a>
-                    <a href="/judge"           class="flex items-center gap-2 px-4 py-2 text-[13px] hover:bg-slate-50 {% if active=='judge' %}text-indigo-700 font-semibold{% endif %}"><span>📋</span> 운영 가이드</a>
+                <div id="dd-worker" class="nav-dd hidden">
+                    <div class="dd-label">체불 예방 · 신고</div>
+                    <a href="/selfcheck"  class="dd-item {% if active=='selfcheck' %}dd-active{% endif %}"><span>🙋</span> 체불 위험 셀프체크</a>
+                    <a href="/wage-calc"  class="dd-item {% if active=='wage_calc' %}dd-active{% endif %}"><span>💰</span> 체불 금액 계산기</a>
+                    <a href="/신고"       class="dd-item {% if active=='report' %}dd-active{% endif %}"><span>✍</span> 익명 체불 신고</a>
+                    <a href="/reports"    class="dd-item {% if active=='reports' %}dd-active{% endif %}"><span>📣</span> 공개 신고 집계</a>
                 </div>
             </div>
 
-            <a href="/신고" class="navlink ml-auto bg-rose-600 text-white hover:bg-rose-700 hover:text-white font-semibold {% if active=='report' %}ring-2 ring-rose-300{% endif %}">✍ 신고</a>
+            <!-- 점검관 -->
+            <div class="relative nav-dd-wrap">
+                <button onclick="toggleDD('dd-inspector')"
+                        class="navlink flex items-center gap-1 {% if active in ['dart','pension','insurance_cross','industry','region','scenario','operator'] %}active{% endif %}">
+                    🔍 점검관
+                    <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="dd-inspector" class="nav-dd hidden">
+                    <div class="dd-label">선행지표</div>
+                    <a href="/dart"            class="dd-item {% if active=='dart' %}dd-active{% endif %}"><span>📊</span> DART 재무위험</a>
+                    <a href="/pension"         class="dd-item {% if active=='pension' %}dd-active{% endif %}"><span>📈</span> NPS 이탈 신호</a>
+                    <a href="/insurance-cross" class="dd-item {% if active=='insurance_cross' %}dd-active{% endif %}"><span>🔗</span> 4대보험 삼각검증</a>
+                    <div class="dd-sep"></div>
+                    <div class="dd-label">통계·분석</div>
+                    <a href="/industry" class="dd-item {% if active=='industry' %}dd-active{% endif %}"><span>🏭</span> 업종별 분석</a>
+                    <a href="/region"   class="dd-item {% if active=='region' %}dd-active{% endif %}"><span>🗺</span> 지역별 분석</a>
+                    <div class="dd-sep"></div>
+                    <div class="dd-label">현장 지원</div>
+                    <a href="/scenario" class="dd-item {% if active=='scenario' %}dd-active{% endif %}"><span>📖</span> 시나리오 워크스루</a>
+                    <a href="/operator" class="dd-item {% if active=='operator' %}dd-active{% endif %}"><span>🧑‍💼</span> 운영주체 시뮬레이터</a>
+                </div>
+            </div>
+
+            <!-- 시스템 -->
+            <div class="relative nav-dd-wrap">
+                <button onclick="toggleDD('dd-system')"
+                        class="navlink flex items-center gap-1 {% if active in ['ml','evidence','m6','m6_embed','scalability','audit','judge'] %}active{% endif %}">
+                    ⚙ 시스템
+                    <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="dd-system" class="nav-dd hidden">
+                    <div class="dd-label">AI · 성능</div>
+                    <a href="/ml"       class="dd-item {% if active=='ml' %}dd-active{% endif %}"><span>🤖</span> AI 모델 · 성능</a>
+                    <a href="/evidence" class="dd-item {% if active=='evidence' %}dd-active{% endif %}"><span>📐</span> 임팩트 근거</a>
+                    <div class="dd-sep"></div>
+                    <div class="dd-label">SDK · 검증</div>
+                    <a href="/m6"         class="dd-item {% if active in ['m6','m6_embed'] %}dd-active{% endif %}"><span>🛡</span> 부정수급 차단 SDK</a>
+                    <a href="/scalability" class="dd-item {% if active=='scalability' %}dd-active{% endif %}"><span>📡</span> 확산 가능성</a>
+                    <a href="/audit"       class="dd-item {% if active=='audit' %}dd-active{% endif %}"><span>⚖</span> 시스템 자체점검</a>
+                    <a href="/judge"       class="dd-item {% if active=='judge' %}dd-active{% endif %}"><span>📋</span> 운영 가이드</a>
+                </div>
+            </div>
+
+            <a href="/신고" class="navlink ml-auto bg-rose-600 text-white hover:bg-rose-700 hover:text-white font-semibold px-3 {% if active=='report' %}ring-2 ring-rose-300{% endif %}">✍ 신고</a>
         </nav>
+        <style>
+        .nav-dd { position:absolute;left:0;top:100%;margin-top:4px;background:white;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.08);z-index:50;padding:6px 0;min-width:210px; }
+        .dd-label { padding:6px 16px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em; }
+        .dd-sep { border-top:1px solid #f1f5f9;margin:4px 0; }
+        .dd-item { display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;color:#475569;text-decoration:none;transition:.12s; }
+        .dd-item:hover { background:#f8fafc;color:#1e293b; }
+        .dd-active { color:#4338ca;font-weight:700; }
+        </style>
         <script>
+        function toggleDD(id) {
+            document.querySelectorAll('.nav-dd').forEach(d => { if (d.id !== id) d.classList.add('hidden'); });
+            document.getElementById(id).classList.toggle('hidden');
+        }
         document.addEventListener('click', function(e) {
-            const wrap = document.getElementById('more-menu-wrap');
-            if (wrap && !wrap.contains(e.target)) document.getElementById('more-dd').classList.add('hidden');
+            if (!e.target.closest('.nav-dd-wrap')) {
+                document.querySelectorAll('.nav-dd').forEach(d => d.classList.add('hidden'));
+            }
         });
         </script>
     </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-6 py-8">
+<main class="max-w-7xl mx-auto px-6 py-10">
     {% block content %}{% endblock %}
 </main>
 

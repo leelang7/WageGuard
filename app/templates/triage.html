@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}점검 우선순위{% endblock %}
 {% block content %}
 
 <!-- 헤더 -->
-<div class="bg-slate-900 text-white rounded-2xl px-6 py-5 mb-5">
+<div class="bg-slate-900 text-white rounded-2xl px-8 py-6 mb-6">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-2 mb-1">
@@ -73,7 +73,16 @@
         </div>
         <div class="text-xs text-slate-400">의심도 순 정렬 · <span id="last-updated">계산 중…</span></div>
     </div>
-    <div id="triage-loading" class="py-10 text-center text-sm text-slate-400">데이터 산출 중…</div>
+    <div id="triage-loading" class="space-y-2 px-1 py-2">
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+        <div class="sk" style="height:42px;border-radius:8px;"></div>
+    </div>
     <div id="triage-wrap" class="hidden overflow-x-auto">
         <table class="t w-full">
             <thead><tr>
@@ -91,7 +100,7 @@
 </div>
 
 <!-- 의심도 분포 + 시스템 사각지대 -->
-<div class="grid md:grid-cols-2 gap-4 mb-4">
+<div class="grid md:grid-cols-2 gap-5 mb-6">
     <div class="card">
         <div class="text-sm font-bold text-slate-800 mb-1">의심도 점수 분포
             <span class="text-xs font-normal text-slate-400">(전체 후보 — 알고리즘 차별력 근거)</span>
@@ -119,7 +128,7 @@
 </div>
 
 <!-- 하단 차트 -->
-<div class="grid md:grid-cols-3 gap-4">
+<div class="grid md:grid-cols-3 gap-5">
     <div class="card">
         <div class="flex items-center justify-between mb-2">
             <div class="text-sm font-bold text-slate-800">지역별 체불 현황</div>
@@ -132,7 +141,9 @@
             <span class="text-xs font-normal text-slate-400">(상장·공시기업 한정 · 3~6개월 전 탐지)</span>
         </div>
         <div id="dart-list" class="space-y-1.5 text-sm">
-            <div class="text-xs text-slate-400">로드 중…</div>
+            <div class="sk" style="height:34px;border-radius:8px;"></div>
+            <div class="sk" style="height:34px;border-radius:8px;"></div>
+            <div class="sk" style="height:34px;border-radius:8px;"></div>
         </div>
     </div>
     <div class="card">
@@ -143,7 +154,9 @@
             <a href="/pension" class="text-[11px] text-indigo-600 hover:underline">전체 →</a>
         </div>
         <div id="nps-risk-list" class="space-y-1 text-sm">
-            <div class="text-xs text-slate-400">로드 중…</div>
+            <div class="sk" style="height:34px;border-radius:8px;"></div>
+            <div class="sk" style="height:34px;border-radius:8px;"></div>
+            <div class="sk" style="height:34px;border-radius:8px;"></div>
         </div>
     </div>
 </div>
@@ -265,6 +278,7 @@ function populateSelects(results) {
 }
 
 async function refreshData() {
+    PgBar.start();
     document.getElementById('triage-loading').classList.remove('hidden');
     document.getElementById('triage-wrap').classList.add('hidden');
     try {
@@ -296,6 +310,7 @@ async function refreshData() {
         }
         document.getElementById('triage-loading').classList.add('hidden');
         applyFilter();
+        PgBar.done();
 
         // DART 선행지표
         const dart = d.leading_indicators_dart;

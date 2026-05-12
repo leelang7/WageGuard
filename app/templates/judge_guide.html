@@ -1,16 +1,12 @@
 ﻿{% extends "base.html" %}
-{% block title %}심사 가이드{% endblock %}
+{% block title %}운영 가이드{% endblock %}
 {% block content %}
 <section class="space-y-6">
 
     <header>
-        <div class="flex items-baseline gap-2 flex-wrap">
-            <h1 class="text-2xl font-extrabold tracking-tight">📋 심사 가이드 — 5분 안에 시스템 작동·근거 확인</h1>
-            <span class="chip chip-low">평가위원용</span>
-        </div>
+        <h1 class="text-2xl font-extrabold tracking-tight">📋 운영 가이드 — 시스템 작동·근거 5분 체크</h1>
         <p class="text-sm text-slate-600 mt-2">
-            WageGuard 시스템의 핵심을 5분 안에 검증할 수 있도록 정리한 가이드.
-            각 항목은 라이브 페이지·API로 즉시 확인 가능.
+            WageGuard 핵심 기능과 데이터 연동 현황을 라이브 페이지·API로 즉시 확인할 수 있습니다.
         </p>
     </header>
 
@@ -184,32 +180,6 @@
         </table>
     </div>
 
-    <!-- 자주 묻는 질문 -->
-    <div class="card bg-slate-50">
-        <h2 class="text-lg font-bold mb-3">❓ 평가위원 자주 묻는 질문</h2>
-        <div class="space-y-3 text-sm">
-            <div>
-                <div class="font-bold">Q. 직접 적발하는가?</div>
-                <div class="text-slate-700">A. Track A SDK는 신청 시점 명의도용을 실시간 차단합니다. Track B는 의심도 점수를 산출하여 운영주체(KEAD·근로감독관) 점검 우선순위를 정렬합니다. 확정 행정 처분은 운영주체 권한 — 책임 분리.</div>
-            </div>
-            <div>
-                <div class="font-bold">Q. AI는 무엇을 사용했나?</div>
-                <div class="text-slate-700">A. Logistic Regression(pure Python, K-fold CV <span id="jg-faq-cv">92.8%</span>, 80/20 Holdout F1 <span id="jg-faq-f1">0.919</span>), TF-IDF 임베딩 + 코사인(직무-장애유형 매칭), 9 신호 SDK(행동·환경·디바이스 fingerprint, F1 0.864), 4기관 교차 가중 모델, NPS Z-score 이상탐지. 실시간 Confusion Matrix → <a href="/ml" class="text-indigo-600 underline">/ml</a></div>
-            </div>
-            <div>
-                <div class="font-bold">Q. 실시간 분석이 가능한가?</div>
-                <div class="text-slate-700">A. /verify 페이지에서 임의의 회사명 입력 시 체불명단·국세청·네이버·Google·NPS 이탈률·DART 재무위험 7개 API를 SSE 스트리밍으로 실시간 호출합니다. DART 재무위험·NPS 시계열은 공개 체불명단보다 3~6개월 선행 탐지.</div>
-            </div>
-            <div>
-                <div class="font-bold">Q. 주관기관 데이터를 정말 결합했나?</div>
-                <div class="text-slate-700">A. KEAD 3개 + 한국고용정보원 4개 활용신청 완료(2026-05-05). ML 9 특성 중 2개가 KEAD 의무고용율(3.1%) 교차 추정으로 결합 — Ablation(<a href="/api/ml/ablation" class="text-indigo-600 underline">/api/ml/ablation</a>)에서 양의 기여 검증. KEAD OpenAPI 전용 path는 data.go.kr에서 비공개 swagger 확인 후 직접 호출 예정.</div>
-            </div>
-            <div>
-                <div class="font-bold">Q. 다른 영역으로 확장 가능한가?</div>
-                <div class="text-slate-700">A. 동일 우선순위 정렬 메커니즘으로 외국인·고령·청년 등 취약 그룹 / 산재·국민연금·고용지원금·공공조달 등 5 영역 즉시 이식. 운영주체만 다를 뿐 데이터 결합·SDK 코드 동일.</div>
-            </div>
-        </div>
-    </div>
 
 </section>
 
@@ -231,7 +201,8 @@ async function loadLiveStats() {
         // 동적 ML 수치
         if (mlCv.mean_f1) {
             const cvPct = (mlCv.mean_f1 * 100).toFixed(1) + '%';
-            ['jg-cv-pct', 'jg-faq-cv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = cvPct; });
+            const el = document.getElementById('jg-cv-pct');
+            if (el) el.textContent = cvPct;
         }
     } catch(e) {}
 }
@@ -239,8 +210,8 @@ async function loadMlMetrics() {
     try {
         const cm = await fetch('/api/ml/confusion').then(r => r.json());
         if (cm.metrics && cm.metrics.f1) {
-            const f1 = cm.metrics.f1.toFixed(3);
-            ['jg-f1', 'jg-faq-f1'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = f1; });
+            const el = document.getElementById('jg-f1');
+            if (el) el.textContent = cm.metrics.f1.toFixed(3);
         }
     } catch(e) {}
 }
