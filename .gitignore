@@ -45,3 +45,6 @@ Thumbs.db
 *.pptx
 *.xlsx
 *.docx
+
+# 내부 문서 (제출용, git 비공개)
+proposal/
