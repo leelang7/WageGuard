@@ -148,6 +148,12 @@ def _build_dataset(include_kead_hard: bool = False) -> tuple[list[list[float]], 
     if not pos:
         return [], [], {}
 
+    # 학습 셋 상한 — 순수 Python 루프 타임아웃 방지 (통계적 대표성 유지)
+    MAX_POS = 3000
+    if len(pos) > MAX_POS:
+        random.seed(42)
+        pos = random.sample(pos, MAX_POS)
+
     industries = sorted(set(p[1] for p in pos))
     regions = sorted(set(p[2] for p in pos))
     random.seed(42)
