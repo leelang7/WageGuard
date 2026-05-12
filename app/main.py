@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .db import init_db
-from .ingest import ingest_defaulters, ingest_risk_cells
+from .ingest import ingest_defaulters, ingest_risk_cells, ingest_nps_seed, ingest_dart_seed, ingest_demo_cases
 from . import scheduler
 from .routes import (
     pages, api_stats, api_business, api_macro, api_m6, api_health,
@@ -24,10 +24,11 @@ from .settings import APP_NAME, STATIC
 
 def create_app() -> FastAPI:
     init_db()
-    if ingest_defaulters() == 0:
-        pass  # 비어있어도 서버는 뜸
-    if ingest_risk_cells() == 0:
-        pass
+    ingest_defaulters()
+    ingest_risk_cells()
+    ingest_nps_seed()
+    ingest_dart_seed()
+    ingest_demo_cases()
 
     app = FastAPI(title=APP_NAME)
     app.add_middleware(MetricsMiddleware)
