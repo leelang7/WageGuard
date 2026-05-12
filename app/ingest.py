@@ -12,6 +12,68 @@ from .settings import SAMPLES
 
 random.seed(42)
 
+_INDUSTRIES = [
+    ("건설업", 0.27), ("제조업", 0.21), ("서비스업", 0.14),
+    ("음식점 및 주점업", 0.10), ("도매 및 소매업", 0.08), ("운수업", 0.06),
+    ("부동산업", 0.05), ("교육서비스업", 0.03), ("출판·정보통신업", 0.03), ("기타", 0.03),
+]
+_REGIONS = [
+    ("서울", 0.27), ("경기", 0.23), ("부산", 0.09), ("인천", 0.07),
+    ("경남", 0.05), ("대구", 0.05), ("충남", 0.04), ("경북", 0.04),
+    ("전남", 0.03), ("전북", 0.03), ("충북", 0.02), ("강원", 0.02),
+    ("대전", 0.02), ("광주", 0.02), ("울산", 0.01), ("제주", 0.01),
+]
+_REGION_ADDR = {
+    "서울": "서울특별시 강남구", "경기": "경기도 수원시", "부산": "부산광역시 해운대구",
+    "인천": "인천광역시 남동구", "경남": "경상남도 창원시", "대구": "대구광역시 달서구",
+    "충남": "충청남도 천안시", "경북": "경상북도 구미시", "전남": "전라남도 순천시",
+    "전북": "전라북도 전주시", "충북": "충청북도 청주시", "강원": "강원도 춘천시",
+    "대전": "대전광역시 서구", "광주": "광주광역시 광산구", "울산": "울산광역시 북구",
+    "제주": "제주특별자치도 제주시",
+}
+_INDUSTRY_AMT = {
+    "건설업": (3_000_000, 800_000_000), "제조업": (5_000_000, 500_000_000),
+    "서비스업": (2_000_000, 200_000_000), "음식점 및 주점업": (1_000_000, 100_000_000),
+    "도매 및 소매업": (2_000_000, 300_000_000), "운수업": (3_000_000, 400_000_000),
+    "부동산업": (2_000_000, 200_000_000), "교육서비스업": (1_500_000, 150_000_000),
+    "출판·정보통신업": (3_000_000, 300_000_000), "기타": (1_000_000, 150_000_000),
+}
+_COMPANY_SUFFIXES = {
+    "건설업": ["건설", "종합건설", "토건", "산업", "엔지니어링"],
+    "제조업": ["정밀", "공업", "산업", "테크", "금속", "소재"],
+    "서비스업": ["서비스", "솔루션", "컨설팅", "파트너스"],
+    "음식점 및 주점업": ["푸드", "외식", "F&B", "키친"],
+    "도매 및 소매업": ["유통", "상사", "트레이딩", "물류"],
+    "운수업": ["물류", "운수", "택배", "해운"],
+    "부동산업": ["부동산", "개발", "자산관리"],
+    "교육서비스업": ["교육", "아카데미", "연구소"],
+    "출판·정보통신업": ["IT", "소프트", "시스템", "미디어"],
+    "기타": ["기업", "홀딩스", "파이낸스"],
+}
+_WORD_PARTS = ["한국", "대한", "동아", "삼성", "현대", "중앙", "서울", "글로벌",
+               "코리아", "미래", "하나", "우리", "성원", "동부", "서부", "남부"]
+_NAMES = ["김상철", "이준호", "박민수", "최현우", "정재훈", "강동현", "윤성민",
+          "임재영", "한승우", "오현석", "서재원", "신동훈", "류성호", "권기태"]
+
+
+def _pick(choices: list) -> str:
+    vals, weights = zip(*choices)
+    r = random.random()
+    cum = 0.0
+    for v, w in zip(vals, weights):
+        cum += w
+        if r <= cum:
+            return v
+    return vals[-1]
+
+
+def _make_company(industry: str) -> str:
+    w1 = random.choice(_WORD_PARTS)
+    suffix = random.choice(_COMPANY_SUFFIXES.get(industry, ["기업"]))
+    prefix = random.choice(["(주)", "", "", ""])
+    return f"{prefix}{w1}{suffix}" if prefix else f"{w1}{suffix}"
+
+
 _INDUSTRY_PAY = {
     "제조업": 1_350_000,
     "건설업": 1_450_000,
@@ -86,6 +148,36 @@ def ingest_defaulters() -> int:
             )
         n = c.execute("SELECT COUNT(*) FROM defaulters").fetchone()[0]
     return n
+
+
+def ingest_synthetic_defaulters(target: int = 3000) -> int:
+    """실 데이터 부족분을 업종·지역 분포 기반 합성 데이터로 채워 target건 유지."""
+    with conn() as c:
+        existing = c.execute("SELECT COUNT(*) FROM defaulters").fetchone()[0]
+        if existing >= target:
+            return existing
+        needed = target - existing
+        rows = []
+        rng = random.Random(2025)
+        for _ in range(needed):
+            industry = _pick(_INDUSTRIES)
+            region = _pick(_REGIONS)
+            year = rng.choices([2026, 2025, 2024, 2023], weights=[0.30, 0.35, 0.25, 0.10])[0]
+            amt_lo, amt_hi = _INDUSTRY_AMT.get(industry, (1_000_000, 200_000_000))
+            amount = rng.randint(amt_lo // 10_000, amt_hi // 10_000) * 10_000
+            company = _make_company(industry)
+            name = rng.choice(_NAMES)
+            age = rng.randint(38, 72)
+            addr = _REGION_ADDR.get(region, "서울특별시 강남구")
+            rows.append((f"{year}년 1차(합성)", name, age, company, industry,
+                         addr, addr, region, amount, year))
+        c.executemany(
+            """INSERT INTO defaulters
+               (round, name, age, company, industry, owner_addr, company_addr, region, amount, year)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            rows,
+        )
+        return c.execute("SELECT COUNT(*) FROM defaulters").fetchone()[0]
 
 
 def ingest_risk_cells() -> int:

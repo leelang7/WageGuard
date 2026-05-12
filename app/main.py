@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .db import init_db
-from .ingest import ingest_defaulters, ingest_risk_cells, ingest_nps_seed, ingest_dart_seed, ingest_demo_cases
+from .ingest import (ingest_defaulters, ingest_synthetic_defaulters, ingest_risk_cells,
+                     ingest_nps_seed, ingest_dart_seed, ingest_demo_cases)
 from . import scheduler
 from .routes import (
     pages, api_stats, api_business, api_macro, api_m6, api_health,
@@ -25,6 +26,7 @@ from .settings import APP_NAME, STATIC
 def create_app() -> FastAPI:
     init_db()
     ingest_defaulters()
+    ingest_synthetic_defaulters(3000)
     ingest_risk_cells()
     ingest_nps_seed()
     ingest_dart_seed()
