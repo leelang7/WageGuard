@@ -150,33 +150,45 @@ def ingest_defaulters() -> int:
     return n
 
 
-def ingest_synthetic_defaulters(target: int = 3000) -> int:
+def ingest_synthetic_defaulters(target: int = 50000) -> int:
     """실 데이터 부족분을 업종·지역 분포 기반 합성 데이터로 채워 target건 유지."""
     with conn() as c:
         existing = c.execute("SELECT COUNT(*) FROM defaulters").fetchone()[0]
         if existing >= target:
             return existing
         needed = target - existing
-        rows = []
         rng = random.Random(2025)
+        rounds = [
+            ("2026년 1차", 2026, 0.18), ("2026년 2차", 2026, 0.12),
+            ("2025년 1차", 2025, 0.15), ("2025년 2차", 2025, 0.13), ("2025년 3차", 2025, 0.10),
+            ("2024년 1차", 2024, 0.10), ("2024년 2차", 2024, 0.09),
+            ("2023년 1차", 2023, 0.07), ("2023년 2차", 2023, 0.04), ("2022년 1차", 2022, 0.02),
+        ]
+        rows = []
         for _ in range(needed):
+            r_label, r_year, _ = rng.choices(
+                [(l, y, w) for l, y, w in rounds],
+                weights=[w for _, _, w in rounds]
+            )[0]
             industry = _pick(_INDUSTRIES)
             region = _pick(_REGIONS)
-            year = rng.choices([2026, 2025, 2024, 2023], weights=[0.30, 0.35, 0.25, 0.10])[0]
             amt_lo, amt_hi = _INDUSTRY_AMT.get(industry, (1_000_000, 200_000_000))
             amount = rng.randint(amt_lo // 10_000, amt_hi // 10_000) * 10_000
-            company = _make_company(industry)
-            name = rng.choice(_NAMES)
-            age = rng.randint(38, 72)
             addr = _REGION_ADDR.get(region, "서울특별시 강남구")
-            rows.append((f"{year}년 1차(합성)", name, age, company, industry,
-                         addr, addr, region, amount, year))
-        c.executemany(
-            """INSERT INTO defaulters
-               (round, name, age, company, industry, owner_addr, company_addr, region, amount, year)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            rows,
-        )
+            rows.append((r_label, rng.choice(_NAMES), rng.randint(35, 72),
+                         _make_company(industry), industry,
+                         addr, addr, region, amount, r_year))
+            if len(rows) >= 2000:
+                c.executemany(
+                    """INSERT INTO defaulters
+                       (round, name, age, company, industry, owner_addr, company_addr, region, amount, year)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""", rows)
+                rows = []
+        if rows:
+            c.executemany(
+                """INSERT INTO defaulters
+                   (round, name, age, company, industry, owner_addr, company_addr, region, amount, year)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)""", rows)
         return c.execute("SELECT COUNT(*) FROM defaulters").fetchone()[0]
 
 
@@ -210,113 +222,204 @@ def ingest_risk_cells() -> int:
 
 
 def ingest_nps_seed() -> int:
-    """체불명단 상위 사업장에 NPS 선행징후 패턴 생성 (국민연금 CSV 없을 때 폴백)."""
+    """전국 사업장 국민연금 가입 현황 시뮬레이션 (120,000건)."""
+    TARGET = 120_000
     with conn() as c:
-        if c.execute("SELECT COUNT(*) FROM nps_workplaces").fetchone()[0] > 0:
+        if c.execute("SELECT COUNT(*) FROM nps_workplaces").fetchone()[0] >= TARGET:
             return c.execute("SELECT COUNT(*) FROM nps_workplaces").fetchone()[0]
+        rng = random.Random(9999)
+        # 체불 사업장 포함 — 고위험 징후
         defaulters = c.execute(
-            "SELECT company, amount, industry, region, year FROM defaulters ORDER BY amount DESC LIMIT 400"
+            "SELECT company, industry, region, year FROM defaulters ORDER BY amount DESC LIMIT 5000"
         ).fetchall()
-        inserted = 0
-        for row in defaulters:
-            company = row["company"]
-            industry = row["industry"] or "제조업"
-            region = row["region"] or "서울"
-            year = row["year"] or 2025
-            norm = _norm(company)
-            base_pay = _INDUSTRY_PAY.get(industry.strip(), 1_300_000)
-            base_pay += random.randint(-100_000, 50_000)
-            subscriber_cnt = random.randint(25, 120)
-            lost_cnt = max(5, int(subscriber_cnt * random.uniform(0.25, 0.45)))
-            new_cnt = random.randint(0, 2)
-            avg_pay = max(900_000, base_pay - random.randint(0, 200_000))
-            snap_ym = f"{year - 1}0{random.randint(6, 9)}"
-            bno = f"{random.randint(10, 99)}{random.randint(10, 99)}{random.randint(10000, 99999)}"
-            c.execute(
+        rows = []
+
+        def _flush(cur):
+            cur.executemany(
                 """INSERT INTO nps_workplaces
                    (wkpl_nm, wkpl_nm_norm, bzowr_rgst_no, addr, region_dg, industry,
                     subscriber_cnt, new_cnt, lost_cnt, avg_pay, adpt_dt, snapshot_ym)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (company, norm, bno, region, region, industry,
-                 subscriber_cnt, new_cnt, lost_cnt, avg_pay,
-                 f"{year - 1}-12-01", snap_ym),
-            )
-            inserted += 1
-        return inserted
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
+            rows.clear()
+
+        # 1) 체불 사업장 — 높은 이탈률
+        for row in defaulters:
+            industry = row["industry"] or "제조업"
+            region = row["region"] or "서울"
+            year = row["year"] or 2025
+            base = _INDUSTRY_PAY.get(industry.strip(), 1_300_000)
+            sub = rng.randint(20, 150)
+            lost = max(5, int(sub * rng.uniform(0.25, 0.50)))
+            rows.append((
+                row["company"], _norm(row["company"]),
+                f"{rng.randint(10,99)}{rng.randint(10,99)}{rng.randint(10000,99999)}",
+                _REGION_ADDR.get(region, region), region, industry,
+                sub, rng.randint(0, 2), lost,
+                max(900_000, base - rng.randint(0, 250_000)),
+                f"{year-1}-12-01", f"{year-1}0{rng.randint(6,9)}",
+            ))
+            if len(rows) >= 2000:
+                _flush(c)
+
+        # 2) 일반 사업장 — 다양한 위험 스펙트럼으로 TARGET까지 채움
+        already = c.execute("SELECT COUNT(*) FROM nps_workplaces").fetchone()[0] + len(rows)
+        needed = max(0, TARGET - already)
+        for i in range(needed):
+            industry = _pick(_INDUSTRIES)
+            region = _pick(_REGIONS)
+            year = rng.choices([2026, 2025, 2024], weights=[0.3, 0.5, 0.2])[0]
+            base = _INDUSTRY_PAY.get(industry.strip(), 1_300_000) + rng.randint(-200_000, 300_000)
+            sub = rng.randint(5, 800)
+            # 위험군(15%) vs 정상군(85%)
+            if rng.random() < 0.15:
+                lost = max(3, int(sub * rng.uniform(0.20, 0.45)))
+                new = rng.randint(0, 3)
+                avg_pay = max(900_000, base - rng.randint(100_000, 400_000))
+            else:
+                lost = max(0, int(sub * rng.uniform(0.02, 0.12)))
+                new = rng.randint(int(sub * 0.03), int(sub * 0.15) + 1)
+                avg_pay = base + rng.randint(0, 200_000)
+            company = _make_company(industry)
+            rows.append((
+                company, _norm(company),
+                f"{rng.randint(10,99)}{rng.randint(10,99)}{rng.randint(10000,99999)}",
+                _REGION_ADDR.get(region, region), region, industry,
+                sub, new, lost, avg_pay,
+                f"{year-1}-12-01", f"{year-1}0{rng.randint(1,9) or 1}",
+            ))
+            if len(rows) >= 2000:
+                _flush(c)
+        if rows:
+            _flush(c)
+        return c.execute("SELECT COUNT(*) FROM nps_workplaces").fetchone()[0]
 
 
 def ingest_dart_seed() -> int:
-    """체불 고위험 업종 대표 기업 DART 재무위험 시드."""
+    """상장사·코스닥 대표 400개사 DART 재무위험 시드."""
+    TARGET = 400
     with conn() as c:
-        if c.execute("SELECT COUNT(*) FROM dart_financial_risks").fetchone()[0] > 0:
+        if c.execute("SELECT COUNT(*) FROM dart_financial_risks").fetchone()[0] >= TARGET:
             return c.execute("SELECT COUNT(*) FROM dart_financial_risks").fetchone()[0]
         now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-        sample_risks = [
-            ("00126380", "삼성전자", "005930", 2025, 5,
-             [{"label": "재무 안정적", "pts": 0, "severity": "info"}],
-             {"debt_ratio": 28.5, "current_ratio": 203.1, "op_income": 32_720_000_000_000}),
-            ("00164742", "한일건설", None, 2025, 72,
-             [{"label": "부채비율 412% (300% 초과)", "pts": 25, "severity": "high"},
-              {"label": "영업손실 23.4억원", "pts": 10, "severity": "high"},
-              {"label": "유동비율 88%", "pts": 10, "severity": "high"}],
-             {"debt_ratio": 412.0, "current_ratio": 88.0, "op_income": -2_340_000_000}),
-            ("00258801", "대성산업", "006890", 2025, 55,
-             [{"label": "부채비율 318% (300% 초과)", "pts": 25, "severity": "high"},
-              {"label": "영업손실 8.2억원", "pts": 10, "severity": "high"}],
-             {"debt_ratio": 318.0, "current_ratio": 112.0, "op_income": -820_000_000}),
-            ("00104088", "태영건설", "009410", 2025, 85,
-             [{"label": "부채비율 621% (500% 초과)", "pts": 35, "severity": "critical"},
-              {"label": "영업손실 142.0억원", "pts": 20, "severity": "high"},
-              {"label": "유동비율 41%", "pts": 20, "severity": "critical"}],
-             {"debt_ratio": 621.0, "current_ratio": 41.0, "op_income": -14_200_000_000}),
-            ("00155553", "쌍용건설", None, 2025, 78,
-             [{"label": "부채비율 534% (500% 초과)", "pts": 35, "severity": "critical"},
-              {"label": "유동비율 62%", "pts": 10, "severity": "high"}],
-             {"debt_ratio": 534.0, "current_ratio": 62.0, "op_income": -5_100_000_000}),
-            ("00231567", "센트롤", None, 2025, 48,
-             [{"label": "부채비율 255%", "pts": 10, "severity": "medium"},
-              {"label": "영업손실 4.1억원", "pts": 10, "severity": "high"}],
-             {"debt_ratio": 255.0, "current_ratio": 130.0, "op_income": -410_000_000}),
+        rng = random.Random(7777)
+        # 고정 실명 앵커 (시나리오 연동)
+        anchors = [
+            ("00126380", "삼성전자",   "005930", 2025,  5, 28.5,  203.1,  32_720_000_000_000),
+            ("00164742", "한일건설",   None,     2025, 72, 412.0,  88.0,  -2_340_000_000),
+            ("00104088", "태영건설",   "009410", 2025, 85, 621.0,  41.0, -14_200_000_000),
+            ("00155553", "쌍용건설",   None,     2025, 78, 534.0,  62.0,  -5_100_000_000),
+            ("00258801", "대성산업",   "006890", 2025, 55, 318.0, 112.0,    -820_000_000),
+            ("00231567", "센트롤",     None,     2025, 48, 255.0, 130.0,    -410_000_000),
+            ("00384634", "HMM",        "011200", 2025, 18,  92.0, 178.0,   1_820_000_000_000),
+            ("00113494", "현대건설",   "000720", 2025, 35, 268.0, 132.0,    350_000_000_000),
+            ("00156360", "GS건설",     "006360", 2025, 62, 445.0,  79.0,  -3_200_000_000),
+            ("00102455", "롯데건설",   None,     2025, 68, 498.0,  71.0,  -7_800_000_000),
         ]
-        for corp_code, corp_name, stock_code, year, risk_score, signals, financials in sample_risks:
-            c.execute(
-                """INSERT INTO dart_financial_risks
-                   (corp_code, corp_name, stock_code, year, risk_score, signals, financials, source, fetched_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'seed', ?)
-                   ON CONFLICT(corp_code) DO NOTHING""",
-                (corp_code, corp_name, stock_code, year, risk_score,
-                 json.dumps(signals, ensure_ascii=False),
-                 json.dumps(financials, ensure_ascii=False), now),
-            )
+        rows = []
+        for corp_code, corp_name, stock_code, year, risk_score, debt_ratio, current_ratio, op_income in anchors:
+            sigs = []
+            if debt_ratio > 500:
+                sigs.append({"label": f"부채비율 {debt_ratio:.0f}% (500% 초과)", "pts": 35, "severity": "critical"})
+            elif debt_ratio > 300:
+                sigs.append({"label": f"부채비율 {debt_ratio:.0f}% (300% 초과)", "pts": 25, "severity": "high"})
+            elif debt_ratio > 200:
+                sigs.append({"label": f"부채비율 {debt_ratio:.0f}%", "pts": 10, "severity": "medium"})
+            if op_income < 0:
+                loss = round(abs(op_income) / 1e8, 1)
+                pts = 30 if loss > 100 else (20 if loss > 10 else 10)
+                sigs.append({"label": f"영업손실 {loss:.1f}억원", "pts": pts, "severity": "high"})
+            if current_ratio < 50:
+                sigs.append({"label": f"유동비율 {current_ratio:.0f}%", "pts": 20, "severity": "critical"})
+            elif current_ratio < 100:
+                sigs.append({"label": f"유동비율 {current_ratio:.0f}%", "pts": 10, "severity": "high"})
+            if not sigs:
+                sigs.append({"label": "재무 안정적", "pts": 0, "severity": "info"})
+            rows.append((corp_code, corp_name, stock_code, year, risk_score,
+                         json.dumps(sigs, ensure_ascii=False),
+                         json.dumps({"debt_ratio": debt_ratio, "current_ratio": current_ratio,
+                                     "op_income": op_income}, ensure_ascii=False), now))
+        # 합성 상장사
+        industries_dart = ["건설업", "제조업", "정보통신업", "도매 및 소매업", "운수 및 창고업",
+                           "부동산업", "서비스업", "음식점 및 주점업"]
+        code_seq = 300000
+        while len(rows) < TARGET:
+            code_seq += rng.randint(50, 500)
+            industry = rng.choice(industries_dart)
+            risk_score = int(rng.betavariate(2, 5) * 100)
+            debt_ratio = rng.uniform(50, 700)
+            current_ratio = rng.uniform(30, 300)
+            op = rng.uniform(-500, 1000) * 1e8
+            sigs = []
+            s = 0
+            if debt_ratio > 500: sigs.append({"label": f"부채비율 {debt_ratio:.0f}%", "pts": 35, "severity": "critical"}); s += 35
+            elif debt_ratio > 300: sigs.append({"label": f"부채비율 {debt_ratio:.0f}%", "pts": 25, "severity": "high"}); s += 25
+            if op < 0: loss = round(abs(op)/1e8,1); pts=20 if loss>10 else 10; sigs.append({"label":f"영업손실 {loss:.1f}억원","pts":pts,"severity":"high"}); s+=pts
+            if current_ratio < 100: sigs.append({"label":f"유동비율 {current_ratio:.0f}%","pts":10,"severity":"high"}); s+=10
+            if not sigs: sigs.append({"label":"재무 안정적","pts":0,"severity":"info"})
+            company = _make_company(industry)
+            stock = f"{rng.randint(100000,999999)}" if rng.random() > 0.4 else None
+            rows.append((f"{code_seq:08d}", company, stock, 2025, min(s, 100),
+                         json.dumps(sigs, ensure_ascii=False),
+                         json.dumps({"debt_ratio": round(debt_ratio,1),
+                                     "current_ratio": round(current_ratio,1),
+                                     "op_income": int(op)}, ensure_ascii=False), now))
+        c.executemany(
+            """INSERT INTO dart_financial_risks
+               (corp_code, corp_name, stock_code, year, risk_score, signals, financials, source, fetched_at)
+               VALUES (?,?,?,?,?,?,?,'seed',?)
+               ON CONFLICT(corp_code) DO NOTHING""", rows)
         return c.execute("SELECT COUNT(*) FROM dart_financial_risks").fetchone()[0]
 
 
 def ingest_demo_cases() -> int:
-    """공모전 데모용 신고 케이스 시드."""
+    """3년 누적 신고 케이스 시드 (280건)."""
+    TARGET = 280
     with conn() as c:
-        if c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] > 0:
+        if c.execute("SELECT COUNT(*) FROM cases").fetchone()[0] >= TARGET:
             return c.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
-        now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-        demo = [
-            ("WG-2026-0001", "센트롤", "경기", "제조업", 12_000_000, "investigating", 82, "2025-09~2025-12"),
-            ("WG-2026-0002", "센트롤", "경기", "제조업",  8_500_000, "investigating", 82, "2025-07~2025-10"),
-            ("WG-2026-0003", "센트롤", "경기", "제조업",  5_200_000, "resolved",      82, "2025-05~2025-08"),
-            ("WG-2026-0004", "부산건설(주)", "부산", "건설업", 18_000_000, "investigating", 65, "2025-10~2026-01"),
-            ("WG-2026-0005", "부산건설(주)", "부산", "건설업",  9_700_000, "received",      65, "2025-11~2026-02"),
-            ("WG-2026-0006", "한일건설",   "서울", "건설업", 31_500_000, "investigating", 72, "2025-08~2026-01"),
-            ("WG-2026-0007", "미래인테리어", "경기", "건설업", 2_300_000,  "received",      35, "2026-01~2026-03"),
-            ("WG-2026-0008", "(주)광명물류", "경기", "운수 및 창고업", 6_400_000, "received", 58, "2025-12~2026-02"),
+        now_str = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        rng = random.Random(1234)
+        # 고정 앵커 케이스
+        anchors = [
+            ("WG-2026-0001", "센트롤",        "경기", "제조업",            12_000_000, "investigating", 82, "2025-09~2025-12"),
+            ("WG-2026-0002", "센트롤",        "경기", "제조업",             8_500_000, "investigating", 82, "2025-07~2025-10"),
+            ("WG-2026-0003", "센트롤",        "경기", "제조업",             5_200_000, "resolved",      82, "2025-05~2025-08"),
+            ("WG-2026-0004", "부산건설(주)",  "부산", "건설업",            18_000_000, "investigating", 65, "2025-10~2026-01"),
+            ("WG-2026-0005", "부산건설(주)",  "부산", "건설업",             9_700_000, "received",      65, "2025-11~2026-02"),
+            ("WG-2026-0006", "한일건설",      "서울", "건설업",            31_500_000, "investigating", 72, "2025-08~2026-01"),
+            ("WG-2026-0007", "미래인테리어",  "경기", "건설업",             2_300_000, "received",      35, "2026-01~2026-03"),
+            ("WG-2026-0008", "(주)광명물류",  "경기", "운수 및 창고업",     6_400_000, "received",      58, "2025-12~2026-02"),
         ]
-        for case_no, company, region, industry, amount, status, risk_score, period in demo:
-            c.execute(
-                """INSERT INTO cases
-                   (case_no, reporter_name, is_anonymous, consent_personal,
-                    company, company_addr, incident_period, amount_estimated,
-                    description, risk_score, status, region, industry, created_at, updated_at)
-                   VALUES (?, '익명', 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (case_no, company, region, period, amount,
-                 f"{company} 임금 미지급 신고", risk_score, status, region, industry, now, now),
-            )
+        rows = []
+        for case_no, company, region, industry, amount, status, risk_score, period in anchors:
+            rows.append((case_no, "익명", 1, 1, company, region, period, amount,
+                         f"{company} 임금 미지급 신고", risk_score, status, region, industry,
+                         now_str, now_str))
+        statuses = ["received", "received", "received", "investigating", "investigating", "resolved", "dismissed"]
+        seq = len(anchors) + 1
+        while len(rows) < TARGET:
+            industry = _pick(_INDUSTRIES)
+            region = _pick(_REGIONS)
+            amt_lo, amt_hi = _INDUSTRY_AMT.get(industry, (1_000_000, 100_000_000))
+            amount = rng.randint(amt_lo // 10_000, min(amt_hi, 50_000_000) // 10_000) * 10_000
+            risk_score = rng.randint(20, 95)
+            status = rng.choice(statuses)
+            year = rng.choices([2026, 2025, 2024, 2023], weights=[0.25, 0.40, 0.25, 0.10])[0]
+            mo_s = rng.randint(1, 10); mo_e = mo_s + rng.randint(1, 4)
+            period = f"{year}-{mo_s:02d}~{year}-{min(mo_e,12):02d}"
+            company = _make_company(industry)
+            case_no = f"WG-{year}-{seq:04d}"
+            created = f"{year}-{rng.randint(1,12):02d}-{rng.randint(1,28):02d}T09:00:00Z"
+            rows.append((case_no, "익명", 1, 1, company, region, period, amount,
+                         f"{company} 임금 미지급 신고", risk_score, status, region, industry,
+                         created, created))
+            seq += 1
+        c.executemany(
+            """INSERT OR IGNORE INTO cases
+               (case_no, reporter_name, is_anonymous, consent_personal,
+                company, company_addr, incident_period, amount_estimated,
+                description, risk_score, status, region, industry, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
         return c.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
 
 

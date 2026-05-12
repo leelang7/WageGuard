@@ -26,7 +26,7 @@ from .settings import APP_NAME, STATIC
 def create_app() -> FastAPI:
     init_db()
     ingest_defaulters()
-    ingest_synthetic_defaulters(3000)
+    ingest_synthetic_defaulters(50000)
     ingest_risk_cells()
     ingest_nps_seed()
     ingest_dart_seed()
