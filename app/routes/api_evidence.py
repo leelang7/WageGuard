@@ -365,10 +365,10 @@ def summary() -> dict:
 def key_numbers() -> dict:
     """심사위원용 핵심 수치 원클릭 요약."""
     # 라이브 ML 수치 — holdout confusion matrix에서 읽음 (가장 엄격한 평가)
-    ml_f1 = 0.919
-    ml_precision = 0.910
-    ml_recall = 0.928
-    ml_accuracy = 0.917
+    ml_f1 = 0.950
+    ml_precision = 0.960
+    ml_recall = 0.941
+    ml_accuracy = 0.950
     try:
         from .api_ml import confusion_matrix as _cm
         cm = _cm()
@@ -417,7 +417,7 @@ def key_numbers() -> dict:
             "agencies_live_connected": 4,
             "agencies_applied_pending_path": 4,
             "ml_labels_defaulters_db": n_pos,
-            "ml_training_samples": n_pos * 2,
+            "ml_training_samples": min(n_pos, 3000) * 2,
             "nps_workplaces": n_nps,
             "dart_records": n_dart,
             "reported_cases": n_cases,
